@@ -407,6 +407,12 @@ class Microvm:
                 if _p.stderr.strip():
                     raise Exception(_p.stderr)
                 self.jailer_clone_pid = int(_p.stdout.rstrip())
+
+                import subprocess
+
+                subprocess.Popen(["strace", "-ff", "-r", "-T", "-y",
+                                  "-yy", "-o", "strace." + self._microvm_id + ".out", "-p",
+                                  str(self.jailer_clone_pid)])
             else:
                 # This code path is not used at the moment, but I just feel
                 # it's nice to have a fallback mechanism in place, in case
@@ -456,6 +462,12 @@ class Microvm:
             self.jailer_clone_pid = open('/proc/{0}/task/{0}/children'
                                          .format(screen_pid)
                                          ).read().strip()
+
+            import subprocess
+
+            subprocess.Popen(["strace", "-ff", "-r", "-T", "-y",
+                              "-yy", "-o", "strace." + self._microvm_id + ".out", "-p",
+                              str(self.jailer_clone_pid)])
 
             # Configure screen to flush stdout to file.
             flush_cmd = 'screen -S {session} -X colon "logfile flush 0^M"'
