@@ -29,3 +29,10 @@ utils = { path = "../utils" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 cpuid = { path = "../cpuid" }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bpf_compilation"
+harness = false
