@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 #![allow(missing_docs)]
 
-mod parser;
+mod compiler;
 mod syscall_table;
 
-use parser::Parser;
+use compiler::{Compiler, Filter};
 use seccomp::BpfProgram;
+use serde_json::error::Error as JSONError;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
@@ -25,6 +26,7 @@ const SUPPORTED_ARCHES: [&str; 2] = ["x86_64", "aarch64"];
 pub enum Error {
     FileOpen(PathBuf, io::Error),
     InvalidArch,
+    JSONError(JSONError),
     MissingInputFile,
 }
 
@@ -39,6 +41,7 @@ impl fmt::Display for Error {
                 format!("Failed to open file {:?}: {}", path, err).replace("\"", "")
             ),
             InvalidArch => write!(f, "Invalid arch"),
+            JSONError(ref err) => write!(f, "Error parsing JSON: {}", err),
             MissingInputFile => write!(f, "Missing input file"),
         }
     }
@@ -105,6 +108,12 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
     })
 }
 
+fn parse_json_file(path: String) -> Result<HashMap<String, Filter>, Error> {
+    let input_file = File::open(&path).map_err(|err| Error::FileOpen(PathBuf::from(&path), err))?;
+    let input_reader = BufReader::new(input_file);
+    serde_json::from_reader(input_reader).map_err(|err| Error::JSONError(err))
+}
+
 fn main() {
     let mut arg_parser = build_arg_parser();
 
@@ -140,19 +149,14 @@ fn main() {
         process::exit(1);
     });
 
-    // get a reader to the input file
-    let input_file = File::open(&args.input_file)
-        .map_err(|err| Error::FileOpen(PathBuf::from(&args.input_file), err))
-        .unwrap_or_else(|err| panic!("Seccompiler error: {}", err));
-    let mut input_reader = BufReader::new(input_file);
-
-    // create a parser and pass the input reader
+    let filters =
+        parse_json_file(args.input_file).unwrap_or_else(|err| panic!("Seccompiler error: {}", err));
     // TODO: return a result here and check for errors
-    let parser = Parser::new(&args.target_arch, &mut input_reader);
+    let compiler = Compiler::new(&args.target_arch);
 
     // transform the IR into a Map of BPFPrograms
     // TODO: return a result here and check for errors
-    let bpf_data: HashMap<String, BpfProgram> = parser.generate_blob();
+    let bpf_data: HashMap<String, BpfProgram> = compiler.compile_blob(filters);
 
     println!("{:#?}", bpf_data);
 
