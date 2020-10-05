@@ -1,0 +1,71 @@
+{
+    "Vmm": {
+        "default_action": {
+            "Errno": 2
+        },
+        "filter_action": "Allow",
+        "filter": [
+            {
+                "syscall": "SYS_accept4",
+                "action": "Allow",
+                "comment": "Used by vsock & api thread"
+            },
+            {
+                "syscalls": [
+                    "SYS_open",
+                    "SYS_exit",
+                    "SYS_close"
+                ],
+                "comment": "Obvious"
+            },
+            {
+                "syscall": "SYS_fcntl",
+                "comment": "used by snapshotting, drive patching and rescanning",
+                "args": [
+                    {
+                        "arg_index": 1,
+                        "arg_type": "DWORD",
+                        "op": {
+                            "MaskedEq": 33
+                        },
+                        "val": 999
+                    },
+                    {
+                        "arg_index": 2,
+                        "arg_type": "DWORD",
+                        "op": "Eq",
+                        "val": 999
+                    }
+                ]
+            },
+            {
+                "syscall": "SYS_futex",
+                "args": [
+                    {
+                        "arg_index": 1,
+                        "arg_type": "DWORD",
+                        "op": "Eq",
+                        "val": 789
+                    },
+                    {
+                        "arg_index": 1,
+                        "arg_type": "DWORD",
+                        "op": "Eq",
+                        "val": 567
+                    }
+                ]
+            },
+            {
+                "syscall": "SYS_futex",
+                "args": [
+                    {
+                        "arg_index": 2,
+                        "arg_type": "DWORD",
+                        "op": "Eq",
+                        "val": 999
+                    }
+                ]
+            }
+        ]
+    }
+}

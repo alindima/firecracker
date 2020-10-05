@@ -230,6 +230,7 @@
 //! [`SeccompAction`]: enum.SeccompAction.html
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`action`]: struct.SeccompRule.html#action
+use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -344,7 +345,7 @@ impl Display for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 /// Comparison to perform when matching a condition.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum SeccompCmpOp {
     /// Argument value is equal to the specified value.
     Eq,
@@ -363,7 +364,7 @@ pub enum SeccompCmpOp {
 }
 
 /// Seccomp argument value length.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum SeccompCmpArgLen {
     /// Argument value length is 4 bytes.
     DWORD,
@@ -372,20 +373,24 @@ pub enum SeccompCmpArgLen {
 }
 
 /// Condition that syscall must match in order to satisfy a rule.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct SeccompCondition {
     /// Index of the argument that is to be compared.
+    #[serde(rename = "arg_index")]
     arg_number: u8,
     /// Length of the argument value that is to be compared.
+    #[serde(rename = "arg_type")]
     arg_len: SeccompCmpArgLen,
     /// Comparison to perform.
+    #[serde(rename = "op")]
     operator: SeccompCmpOp,
     /// The value that will be compared with the argument value.
+    #[serde(rename = "val")]
     value: u64,
 }
 
 /// Actions that `seccomp` can apply to process calling a syscall.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub enum SeccompAction {
     /// Allows syscall.
     Allow,
@@ -417,6 +422,9 @@ pub struct SeccompRule {
 /// Type that encapsulates a tuple (syscall number, rule set).
 pub type SyscallRuleSet = (i64, Vec<SeccompRule>);
 
+/// Type that associates the syscall number to its SeccompRules
+pub type SeccompRuleMap = BTreeMap<i64, Vec<SeccompRule>>;
+
 /// Builds the (syscall, rules) tuple for allowing a syscall regardless of arguments.
 #[inline(always)]
 pub fn allow_syscall(syscall_number: i64) -> SyscallRuleSet {
@@ -436,7 +444,8 @@ pub fn allow_syscall_if(syscall_number: i64, rules: Vec<SeccompRule>) -> Syscall
 #[derive(Clone, Debug)]
 pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
-    rules: BTreeMap<i64, Vec<SeccompRule>>,
+    // #[serde(deseralize_with = "deserialize_rule_map", rename = "filter")]
+    rules: SeccompRuleMap,
     /// Default action to apply to syscall numbers that do not exist in the hash map.
     default_action: SeccompAction,
 }
@@ -514,16 +523,7 @@ impl SeccompCondition {
         let arg_offset = SECCOMP_DATA_ARGS_OFFSET + self.arg_number * SECCOMP_DATA_ARG_SIZE;
 
         // Extracts offsets of most significant and least significant halves of argument.
-        let (msb_offset, lsb_offset) = {
-            #[cfg(target_endian = "big")]
-            {
-                (arg_offset, arg_offset + SECCOMP_DATA_ARG_SIZE / 2)
-            }
-            #[cfg(target_endian = "little")]
-            {
-                (arg_offset + SECCOMP_DATA_ARG_SIZE / 2, arg_offset)
-            }
-        };
+        let (msb_offset, lsb_offset) = { (arg_offset + SECCOMP_DATA_ARG_SIZE / 2, arg_offset) };
 
         (msb, lsb, msb_offset, lsb_offset)
     }
@@ -866,10 +866,7 @@ impl SeccompFilter {
     ///
     /// * `rules` - Map of syscall numbers and the rules that will be applied to each of them.
     /// * `default_action` - Action taken for all syscalls that do not match any rule.
-    pub fn new(
-        rules: BTreeMap<i64, Vec<SeccompRule>>,
-        default_action: SeccompAction,
-    ) -> Result<Self> {
+    pub fn new(rules: SeccompRuleMap, default_action: SeccompAction) -> Result<Self> {
         // All inserted syscalls must have at least one rule, otherwise BPF code will break.
         for (_, value) in rules.iter() {
             if value.is_empty() {
@@ -1665,16 +1662,7 @@ mod tests {
         );
 
         // Calculates architecture dependent argument value offsets.
-        let (msb_offset, lsb_offset) = {
-            #[cfg(target_endian = "big")]
-            {
-                (0, 4)
-            }
-            #[cfg(target_endian = "little")]
-            {
-                (4, 0)
-            }
-        };
+        let (msb_offset, lsb_offset) = { (4, 0) };
 
         // Builds hardcoded BPF instructions.
         let instructions = vec![
@@ -1709,16 +1697,7 @@ mod tests {
         let rule = SeccompRule::new(conditions, SeccompAction::Allow);
 
         // Calculates architecture dependent argument value offsets.
-        let (msb_offset, lsb_offset) = {
-            #[cfg(target_endian = "big")]
-            {
-                (0, 4)
-            }
-            #[cfg(target_endian = "little")]
-            {
-                (4, 0)
-            }
-        };
+        let (msb_offset, lsb_offset) = { (4, 0) };
 
         // Builds hardcoded BPF instructions.
         let mut instructions = vec![
