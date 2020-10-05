@@ -14,7 +14,20 @@ struct SyscallObject {
     syscalls: Option<Vec<String>>,
     action: Option<SeccompAction>,
     #[serde(rename = "args")]
-    rules: Option<Vec<SeccompCondition>>,
+    conditions: Option<Vec<SeccompCondition>>,
+}
+
+impl SyscallObject {
+    pub fn is_singular(&self) -> bool {
+        self.syscall.is_some() && self.syscalls.is_none()
+    }
+
+    pub fn is_plural(&self) -> bool {
+        self.syscall.is_none() && self.syscalls.is_some()
+    }
+
+    // implement validation of fields -> validate the existence of args field and singular/plural
+    // pub fn validate(&self) -> Result<(), >
 }
 
 // Each thread category maps to one of these
@@ -55,57 +68,27 @@ impl Parser {
         let mut rule_map: SeccompRuleMap = SeccompRuleMap::new();
 
         for syscall_object in &filter.filter {
-            // multiple syscalls
-            if syscall_object.syscalls.is_some() && syscall_object.syscall.is_none() {
+            let action = syscall_object
+                .action
+                .clone()
+                .or(Some(filter.filter_action.clone()))
+                .unwrap();
+            if syscall_object.is_plural() {
                 for syscall in syscall_object.syscalls.as_ref().unwrap() {
                     let syscall_nr = self.syscall_table.get_syscall_nr(&syscall).unwrap();
                     let rule_accumulator = rule_map.entry(syscall_nr).or_insert(vec![]);
 
-                    if syscall_object.action.is_some() {
-                        // overriding the filter_action
-                        rule_accumulator.push(SeccompRule::new(
-                            vec![],
-                            syscall_object.action.as_ref().unwrap().clone(),
-                        ));
-                    } else {
-                        // adding the default filter_action to the rule
-                        rule_accumulator
-                            .push(SeccompRule::new(vec![], filter.filter_action.clone()));
-                    }
+                    rule_accumulator.push(SeccompRule::new(vec![], action.clone()));
                 }
-            }
-            // single syscall
-            else if syscall_object.syscall.is_some() && syscall_object.syscalls.is_none() {
+            } else if syscall_object.is_singular() {
                 let syscall_nr = self
                     .syscall_table
                     .get_syscall_nr(syscall_object.syscall.as_ref().unwrap())
                     .unwrap();
                 let rule_accumulator = rule_map.entry(syscall_nr).or_insert(vec![]);
-                if syscall_object.action.is_some() {
-                    // overriding the filter_action
-                    if (syscall_object.rules.is_some()) {
-                        rule_accumulator.push(SeccompRule::new(
-                            syscall_object.rules.as_ref().unwrap().clone(),
-                            syscall_object.action.as_ref().unwrap().clone(),
-                        ));
-                    } else {
-                        rule_accumulator.push(SeccompRule::new(
-                            vec![],
-                            syscall_object.action.as_ref().unwrap().clone(),
-                        ));
-                    }
-                } else {
-                    // adding the default filter_action to the rule
-                    if (syscall_object.rules.is_some()) {
-                        rule_accumulator.push(SeccompRule::new(
-                            syscall_object.rules.as_ref().unwrap().clone(),
-                            filter.filter_action.clone(),
-                        ));
-                    } else {
-                        rule_accumulator
-                            .push(SeccompRule::new(vec![], filter.filter_action.clone()));
-                    }
-                }
+                let conditions = syscall_object.conditions.clone().or(Some(vec![])).unwrap();
+
+                rule_accumulator.push(SeccompRule::new(conditions, action));
             }
         }
 

@@ -15,7 +15,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process;
 use std::result::Result;
-use utils::arg_parser::{ArgParser, Argument, Error as ParsingError};
+use utils::arg_parser::{ArgParser, Argument};
 
 const SECCOMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -26,12 +26,6 @@ pub enum Error {
     FileOpen(PathBuf, io::Error),
     InvalidArch,
     MissingInputFile,
-}
-
-struct Arguments {
-    input_file: String,
-    output_file: String,
-    target_arch: String,
 }
 
 impl fmt::Display for Error {
@@ -48,6 +42,12 @@ impl fmt::Display for Error {
             MissingInputFile => write!(f, "Missing input file"),
         }
     }
+}
+
+struct Arguments {
+    input_file: String,
+    output_file: String,
+    target_arch: String,
 }
 
 pub fn build_arg_parser() -> ArgParser<'static> {
