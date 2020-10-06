@@ -88,12 +88,12 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
             }
         });
 
-    if let None = target_arch {
+    if target_arch.is_none() {
         return Err(Error::InvalidArch);
     }
 
     let input_file = arg_parser.arguments().value_as_string("input_file");
-    if let None = input_file {
+    if input_file.is_none() {
         return Err(Error::MissingInputFile);
     }
 
@@ -111,7 +111,7 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
 fn parse_json_file(path: String) -> Result<HashMap<String, Filter>, Error> {
     let input_file = File::open(&path).map_err(|err| Error::FileOpen(PathBuf::from(&path), err))?;
     let input_reader = BufReader::new(input_file);
-    serde_json::from_reader(input_reader).map_err(|err| Error::JSONError(err))
+    serde_json::from_reader(input_reader).map_err(Error::JSONError)
 }
 
 fn main() {
@@ -158,7 +158,7 @@ fn main() {
     // TODO: return a result here and check for errors
     let bpf_data: HashMap<String, BpfProgram> = compiler.compile_blob(filters);
 
-    println!("{:#?}", bpf_data);
+    println!("{:#?} {:#?}", args.output_file, bpf_data);
 
     // serialize the BPF programs & output them to a file
 }

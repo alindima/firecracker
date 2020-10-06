@@ -25,7 +25,7 @@ impl SyscallTable {
     }
 
     pub fn get_syscall_nr(&self, sys_name: &str) -> Option<i64> {
-        self.map.get(sys_name).and_then(|nr| Some(*nr))
+        self.map.get(sys_name).copied()
     }
 
     // We need to create an architecture-specific map since the set of
@@ -1118,7 +1118,7 @@ mod tests {
     #[test]
     fn test_get_syscall_nr() {
         // get number for a valid syscall
-        let instance = SyscallTable::new();
+        let instance = SyscallTable::new(std::env::consts::ARCH.to_string());
 
         assert_eq!(
             instance.get_syscall_nr("SYS_close").unwrap(),

@@ -1,6 +1,15 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-use seccomp::{allow_syscall, SyscallRuleSet};
+use seccomp::{SeccompAction, SeccompRule, SyscallRuleSet};
+
+/// Builds the (syscall, rules) tuple for allowing a syscall regardless of arguments.
+#[inline(always)]
+pub fn allow_syscall(syscall_number: i64) -> SyscallRuleSet {
+    (
+        syscall_number,
+        vec![SeccompRule::new(vec![], SeccompAction::Allow)],
+    )
+}
 
 /// Returns a list of rules that allow syscalls required for running a rust program.
 pub fn rust_required_rules() -> Vec<SyscallRuleSet> {

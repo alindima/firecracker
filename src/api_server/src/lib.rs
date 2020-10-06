@@ -289,7 +289,6 @@ impl ApiServer {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
     use std::io::{Read, Write};
     use std::os::unix::net::UnixStream;
     use std::sync::mpsc::channel;
@@ -661,7 +660,9 @@ mod tests {
                     PathBuf::from(api_thread_path_to_socket),
                     Some(1),
                     Some(1),
-                    SeccompFilter::empty().try_into().unwrap(),
+                    SeccompFilter::empty()
+                        .into_bpf(std::env::consts::ARCH)
+                        .unwrap(),
                 )
                 .unwrap();
             })

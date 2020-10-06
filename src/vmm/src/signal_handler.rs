@@ -160,9 +160,17 @@ mod tests {
     use super::*;
 
     use libc::{cpu_set_t, syscall};
-    use std::{convert::TryInto, mem, process, thread};
+    use std::{mem, process, thread};
 
-    use seccomp::{allow_syscall, SeccompAction, SeccompFilter};
+    use seccomp::{SeccompAction, SeccompFilter, SeccompRule, SyscallRuleSet};
+    // Builds the (syscall, rules) tuple for allowing a syscall regardless of arguments.
+    #[inline(always)]
+    pub fn allow_syscall(syscall_number: i64) -> SyscallRuleSet {
+        (
+            syscall_number,
+            vec![SeccompRule::new(vec![], SeccompAction::Allow)],
+        )
+    }
 
     // This function is used when running unit tests, so all the unsafes are safe.
     fn cpu_count() -> usize {
@@ -214,7 +222,7 @@ mod tests {
             )
             .unwrap();
 
-            assert!(SeccompFilter::apply(filter.try_into().unwrap()).is_ok());
+            assert!(SeccompFilter::apply(filter.into_bpf(std::env::consts::ARCH).unwrap()).is_ok());
             assert_eq!(METRICS.seccomp.num_faults.count(), 0);
 
             // Call the blacklisted `SYS_mkdirat`.

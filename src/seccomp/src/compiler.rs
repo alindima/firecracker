@@ -4,7 +4,6 @@ use seccomp::{
 };
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct SyscallObject {
@@ -63,28 +62,30 @@ impl Compiler {
         let mut rule_map: SeccompRuleMap = SeccompRuleMap::new();
 
         for syscall_object in filter.filter {
+            let filter_action = &filter.filter_action;
+
             if syscall_object.is_plural() {
                 let action = syscall_object
                     .action
-                    .or(Some(filter.filter_action.clone()))
+                    .or_else(|| Some(filter_action.clone()))
                     .unwrap();
                 for syscall in syscall_object.syscalls.as_ref().unwrap() {
                     let syscall_nr = self.syscall_table.get_syscall_nr(&syscall).unwrap();
-                    let rule_accumulator = rule_map.entry(syscall_nr).or_insert(vec![]);
+                    let rule_accumulator = rule_map.entry(syscall_nr).or_insert_with(|| vec![]);
 
                     rule_accumulator.push(SeccompRule::new(vec![], action.clone()));
                 }
             } else if syscall_object.is_singular() {
                 let action = syscall_object
                     .action
-                    .or(Some(filter.filter_action.clone()))
+                    .or_else(|| Some(filter_action.clone()))
                     .unwrap();
                 let syscall_nr = self
                     .syscall_table
                     .get_syscall_nr(syscall_object.syscall.as_ref().unwrap())
                     .unwrap();
-                let rule_accumulator = rule_map.entry(syscall_nr).or_insert(vec![]);
-                let conditions = syscall_object.conditions.or(Some(vec![])).unwrap();
+                let rule_accumulator = rule_map.entry(syscall_nr).or_insert_with(|| vec![]);
+                let conditions = syscall_object.conditions.or_else(|| Some(vec![])).unwrap();
 
                 rule_accumulator.push(SeccompRule::new(conditions, action));
             }
@@ -94,7 +95,7 @@ impl Compiler {
 
         SeccompFilter::new(rule_map, filter.default_action)
             .unwrap()
-            .try_into()
+            .into_bpf(&self.arch)
             .unwrap()
     }
 }

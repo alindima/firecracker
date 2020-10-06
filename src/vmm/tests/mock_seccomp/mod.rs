@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::collections::BTreeMap;
-use std::convert::TryInto;
 
 use libc;
 
 use seccomp::{
-    allow_syscall, allow_syscall_if, BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp::*,
-    SeccompCondition, SeccompFilter, SeccompRule, SyscallRuleSet,
+    BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp::*, SeccompCondition, SeccompFilter,
+    SeccompRule, SyscallRuleSet,
 };
 use utils::signal::sigrtmin;
 
@@ -68,6 +67,21 @@ const TUNSETVNETHDRSZ: u64 = 0x4004_54d8;
 pub struct MockSeccomp {
     rules: BTreeMap<i64, Vec<SeccompRule>>,
     default_action: SeccompAction,
+}
+
+// Builds the (syscall, rules) tuple for allowing a syscall regardless of arguments.
+#[inline(always)]
+pub fn allow_syscall(syscall_number: i64) -> SyscallRuleSet {
+    (
+        syscall_number,
+        vec![SeccompRule::new(vec![], SeccompAction::Allow)],
+    )
+}
+
+// Builds the (syscall, rules) tuple for allowing a syscall with certain arguments.
+#[inline(always)]
+fn allow_syscall_if(syscall_number: i64, rules: Vec<SeccompRule>) -> SyscallRuleSet {
+    (syscall_number, rules)
 }
 
 // Seccomp rule building macros copied from Firecracker.
@@ -304,7 +318,7 @@ impl MockSeccomp {
 impl Into<BpfProgram> for MockSeccomp {
     fn into(self) -> BpfProgram {
         let flt = SeccompFilter::new(self.rules, self.default_action).unwrap();
-        let bpf_prog: BpfProgram = flt.try_into().unwrap();
+        let bpf_prog: BpfProgram = flt.into_bpf(std::env::consts::ARCH).unwrap();
         bpf_prog
     }
 }

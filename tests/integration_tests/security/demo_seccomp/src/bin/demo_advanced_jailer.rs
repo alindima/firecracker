@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 mod seccomp_rules;
 
-use std::convert::TryInto;
 use std::env::args;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
@@ -45,7 +44,7 @@ fn main() {
         .unwrap();
 
     // Loads filters.
-    SeccompFilter::apply(filter.try_into().unwrap()).unwrap();
+    SeccompFilter::apply(filter.into_bpf(std::env::consts::ARCH).unwrap()).unwrap();
 
     Command::new(exec_file)
         .stdin(Stdio::inherit())
