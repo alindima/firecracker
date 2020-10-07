@@ -5,7 +5,8 @@
 mod compiler;
 mod syscall_table;
 
-use compiler::{Compiler, Filter};
+use bincode::Error as BincodeError;
+use compiler::{Compiler, Error as FilterFormatError, Filter};
 use seccomp::BpfProgram;
 use serde_json::error::Error as JSONError;
 use std::collections::HashMap;
@@ -24,7 +25,9 @@ const SUPPORTED_ARCHES: [&str; 2] = ["x86_64", "aarch64"];
 
 #[derive(Debug)]
 pub enum Error {
+    Bincode(BincodeError),
     FileOpen(PathBuf, io::Error),
+    FileFormat(FilterFormatError),
     InvalidArch,
     JSONError(JSONError),
     MissingInputFile,
@@ -35,6 +38,8 @@ impl fmt::Display for Error {
         use self::Error::*;
 
         match *self {
+            Bincode(ref err) => write!(f, "Bincode (de)serialization failed: {}", err),
+            FileFormat(ref err) => write!(f, "{}", err),
             FileOpen(ref path, ref err) => write!(
                 f,
                 "{}",
@@ -100,7 +105,7 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
     Ok(Arguments {
         target_arch: target_arch.unwrap(),
         input_file: input_file.unwrap(),
-        // Safe because it has a default value
+        // Safe to unwrap because it has a default value
         output_file: arg_parser
             .arguments()
             .value_as_string("output_file")
@@ -108,10 +113,31 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
     })
 }
 
-fn parse_json_file(path: String) -> Result<HashMap<String, Filter>, Error> {
-    let input_file = File::open(&path).map_err(|err| Error::FileOpen(PathBuf::from(&path), err))?;
+fn parse_json_file(path: &str) -> Result<HashMap<String, Filter>, Error> {
+    let input_file = File::open(path).map_err(|err| Error::FileOpen(PathBuf::from(path), err))?;
     let input_reader = BufReader::new(input_file);
     serde_json::from_reader(input_reader).map_err(Error::JSONError)
+}
+
+fn compile(args: &Arguments) -> Result<(), Error> {
+    let filters = parse_json_file(&args.input_file)?;
+    let compiler = Compiler::new(&args.target_arch);
+
+    compiler
+        .validate_filters(&filters)
+        .map_err(Error::FileFormat)?;
+
+    // transform the IR into a Map of BPFPrograms
+    let bpf_data: HashMap<String, BpfProgram> =
+        compiler.compile_blob(filters).map_err(Error::FileFormat)?;
+
+    // serialize the BPF programs & output them to a file
+    let output_file = File::create(&args.output_file)
+        .map_err(|err| Error::FileOpen(PathBuf::from(&args.output_file), err))?;
+    bincode::serialize_into(output_file, &bpf_data).map_err(Error::Bincode)?;
+    // println!("{:#?}", bpf_data);
+
+    Ok(())
 }
 
 fn main() {
@@ -149,18 +175,9 @@ fn main() {
         process::exit(1);
     });
 
-    let filters =
-        parse_json_file(args.input_file).unwrap_or_else(|err| panic!("Seccompiler error: {}", err));
-    // TODO: return a result here and check for errors
-    let compiler = Compiler::new(&args.target_arch);
+    compile(&args).unwrap_or_else(|err| panic!("Seccompiler error: {}", err));
 
-    // transform the IR into a Map of BPFPrograms
-    // TODO: return a result here and check for errors
-    let bpf_data: HashMap<String, BpfProgram> = compiler.compile_blob(filters);
-
-    println!("{:#?} {:#?}", args.output_file, bpf_data);
-
-    // serialize the BPF programs & output them to a file
+    println!("Filter successfully compiled into: {}", args.output_file);
 }
 
 #[cfg(test)]

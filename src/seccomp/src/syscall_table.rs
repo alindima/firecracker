@@ -7,7 +7,6 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct SyscallTable {
     map: HashMap<String, i64>,
-
     arch: String,
 }
 

@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
@@ -208,7 +208,7 @@ pub struct SeccompFilter {
 // BPF instruction structure definition.
 // See /usr/include/linux/filter.h .
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[doc(hidden)]
 pub struct sock_filter {
     pub code: ::std::os::raw::c_ushort,
