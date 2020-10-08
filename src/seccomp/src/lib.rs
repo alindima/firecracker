@@ -78,7 +78,7 @@ const SECCOMP_DATA_ARGS_OFFSET: u8 = 16;
 const SECCOMP_DATA_ARG_SIZE: u8 = 8;
 
 /// Seccomp errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /// Attempting to add an empty vector of rules to the rule chain of a syscall.
     EmptyRulesVector,
@@ -181,7 +181,7 @@ pub enum SeccompAction {
 /// If all conditions match then rule gets matched.
 /// The action of the first rule that matches will be applied to the calling process.
 /// If no rule matches the default action is applied.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SeccompRule {
     /// Conditions of rule that need to match in order for the rule to get matched.
     conditions: Vec<SeccompCondition>,
@@ -196,10 +196,9 @@ pub type SyscallRuleSet = (i64, Vec<SeccompRule>);
 pub type SeccompRuleMap = BTreeMap<i64, Vec<SeccompRule>>;
 
 /// Filter containing rules assigned to syscall numbers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
-    // #[serde(deseralize_with = "deserialize_rule_map", rename = "filter")]
     rules: SeccompRuleMap,
     /// Default action to apply to syscall numbers that do not exist in the hash map.
     default_action: SeccompAction,
@@ -249,17 +248,24 @@ impl SeccompCondition {
         operator: SeccompCmpOp,
         value: u64,
     ) -> Result<Self> {
-        // Checks that the given argument number is valid.
-        if arg_number > ARG_NUMBER_MAX {
-            return Err(Error::InvalidArgumentNumber);
-        }
-
-        Ok(Self {
+        let instance = Self {
             arg_number,
             arg_len,
             operator,
             value,
-        })
+        };
+
+        instance.validate().map(|_| Ok(instance))?
+    }
+
+    // Validates the SeccompCondition data
+    pub fn validate(&self) -> Result<()> {
+        // Checks that the given argument number is valid.
+        if self.arg_number > ARG_NUMBER_MAX {
+            return Err(Error::InvalidArgumentNumber);
+        }
+
+        Ok(())
     }
 
     /// Splits the [`SeccompCondition`] into 32 bit chunks and offsets.
