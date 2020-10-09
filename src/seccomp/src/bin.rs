@@ -13,10 +13,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::io;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::process;
-use std::result::Result;
 use utils::arg_parser::{ArgParser, Argument};
 
 const SECCOMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,6 +31,8 @@ pub enum Error {
     JSONError(JSONError),
     MissingInputFile,
 }
+
+type Result<T> = std::result::Result<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -58,7 +59,7 @@ struct Arguments {
     target_arch: String,
 }
 
-pub fn build_arg_parser() -> ArgParser<'static> {
+fn build_arg_parser() -> ArgParser<'static> {
     ArgParser::new()
         .arg(
             Argument::new("input_file")
@@ -81,7 +82,7 @@ pub fn build_arg_parser() -> ArgParser<'static> {
         )
 }
 
-fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
+fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments> {
     let target_arch = arg_parser
         .arguments()
         .value_as_string("target_arch")
@@ -113,19 +114,16 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments, Error> {
     })
 }
 
-fn parse_json_file(path: &str) -> Result<HashMap<String, Filter>, Error> {
-    let input_file = File::open(path).map_err(|err| Error::FileOpen(PathBuf::from(path), err))?;
-    let input_reader = BufReader::new(input_file);
-    serde_json::from_reader(input_reader).map_err(Error::JSONError)
+fn parse_json(reader: &mut dyn Read) -> Result<HashMap<String, Filter>> {
+    serde_json::from_reader(reader).map_err(Error::JSONError)
 }
 
-fn compile(args: &Arguments) -> Result<(), Error> {
-    let filters = parse_json_file(&args.input_file)?;
+fn compile(args: &Arguments) -> Result<()> {
+    let input_file = File::open(&args.input_file)
+        .map_err(|err| Error::FileOpen(PathBuf::from(&args.input_file), err))?;
+    let mut input_reader = BufReader::new(input_file);
+    let filters = parse_json(&mut input_reader)?;
     let compiler = Compiler::new(&args.target_arch);
-
-    compiler
-        .validate_filters(&filters)
-        .map_err(Error::FileFormat)?;
 
     // transform the IR into a Map of BPFPrograms
     let bpf_data: HashMap<String, BpfProgram> =
@@ -135,7 +133,6 @@ fn compile(args: &Arguments) -> Result<(), Error> {
     let output_file = File::create(&args.output_file)
         .map_err(|err| Error::FileOpen(PathBuf::from(&args.output_file), err))?;
     bincode::serialize_into(output_file, &bpf_data).map_err(Error::Bincode)?;
-    // println!("{:#?}", bpf_data);
 
     Ok(())
 }
@@ -181,4 +178,198 @@ fn main() {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::compiler::{Filter, SyscallObject};
+    use super::{parse_json, Error};
+    use seccomp::{SeccompAction, SeccompCmpArgLen::*, SeccompCmpOp::*, SeccompCondition as Cond};
+    use std::collections::HashMap;
+    fn empty_syscall_object() -> SyscallObject {
+        SyscallObject {
+            syscall: None,
+            syscalls: None,
+            conditions: None,
+            action: None,
+            comment: None,
+        }
+    }
+    #[test]
+    fn test_parse_json() {
+        // test with correctly formed JSON
+        let mut json_input = r#"
+        {
+            "thread_1": {
+                "default_action": {
+                    "Errno": 12
+                },
+                "filter_action": "Allow",
+                "filter": [
+                    {
+                        "syscall": "SYS_open",
+                        "comment": "Obvious",
+                        "action": "Log"
+                    },
+                    {
+                        "syscalls": [
+                            "SYS_close",
+                            "SYS_stat"
+                        ],
+                        "action": "Trap"
+                    },
+                    {
+                        "syscall": "SYS_futex",
+                        "args": [
+                            {
+                                "arg_index": 2,
+                                "arg_type": "DWORD",
+                                "op": "Le",
+                                "val": 65
+                            },
+                            {
+                                "arg_index": 1,
+                                "arg_type": "QWORD",
+                                "op": "Ne",
+                                "val": 80
+                            }
+                        ]
+                    },
+                    {
+                        "syscall": "SYS_futex",
+                        "action": "Log",
+                        "args": [
+                            {
+                                "arg_index": 3,
+                                "arg_type": "QWORD",
+                                "op": "Gt",
+                                "val": 65
+                            },
+                            {
+                                "arg_index": 1,
+                                "arg_type": "QWORD",
+                                "op": "Lt",
+                                "val": 80
+                            }
+                        ]
+                    },
+                    {
+                        "syscall": "SYS_futex",
+                        "args": [
+                            {
+                                "arg_index": 3,
+                                "arg_type": "QWORD",
+                                "op": "Ge",
+                                "val": 65
+                            }
+                        ]
+                    },
+                    {
+                        "syscall": "SYS_ioctl",
+                        "args": [
+                            {
+                                "arg_index": 3,
+                                "arg_type": "DWORD",
+                                "op": {
+                                    "MaskedEq": 100
+                                },
+                                "val": 65
+                            }
+                        ]
+                    }
+                ]
+            },
+            "thread_2": {
+                "default_action": "Trap",
+                "filter_action": "Allow",
+                "filter": [
+                    {
+                        "syscall": "SYS_ioctl",
+                        "args": [
+                            {
+                                "arg_index": 3,
+                                "arg_type": "DWORD",
+                                "op": "Eq",
+                                "val": 65
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        "#
+        .to_string();
+        let json_input = unsafe { json_input.as_bytes_mut() };
+
+        let mut filters = HashMap::new();
+        filters.insert(
+            "thread_1".to_string(),
+            Filter {
+                default_action: SeccompAction::Errno(12),
+                filter_action: SeccompAction::Allow,
+                filter: vec![
+                    SyscallObject {
+                        syscall: Some("SYS_open".to_string()),
+                        action: Some(SeccompAction::Log),
+                        comment: Some("Obvious".to_string()),
+                        ..empty_syscall_object()
+                    },
+                    SyscallObject {
+                        syscalls: Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
+                        action: Some(SeccompAction::Trap),
+                        ..empty_syscall_object()
+                    },
+                    SyscallObject {
+                        syscall: Some("SYS_futex".to_string()),
+                        conditions: Some(vec![
+                            Cond::new(2, DWORD, Le, 65).unwrap(),
+                            Cond::new(1, QWORD, Ne, 80).unwrap(),
+                        ]),
+                        ..empty_syscall_object()
+                    },
+                    SyscallObject {
+                        syscall: Some("SYS_futex".to_string()),
+                        conditions: Some(vec![
+                            Cond::new(3, QWORD, Gt, 65).unwrap(),
+                            Cond::new(1, QWORD, Lt, 80).unwrap(),
+                        ]),
+                        action: Some(SeccompAction::Log),
+                        ..empty_syscall_object()
+                    },
+                    SyscallObject {
+                        syscall: Some("SYS_futex".to_string()),
+                        conditions: Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
+                        ..empty_syscall_object()
+                    },
+                    SyscallObject {
+                        syscall: Some("SYS_ioctl".to_string()),
+                        conditions: Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
+                        ..empty_syscall_object()
+                    },
+                ],
+            },
+        );
+
+        filters.insert(
+            "thread_2".to_string(),
+            Filter {
+                default_action: SeccompAction::Trap,
+                filter_action: SeccompAction::Allow,
+                filter: vec![SyscallObject {
+                    syscall: Some("SYS_ioctl".to_string()),
+                    conditions: Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
+                    ..empty_syscall_object()
+                }],
+            },
+        );
+
+        let mut v1: Vec<_> = filters.into_iter().collect();
+        v1.sort_by(|x, y| x.0.cmp(&y.0));
+
+        let mut v2: Vec<_> = parse_json(&mut json_input.as_ref())
+            .unwrap()
+            .into_iter()
+            .collect();
+        v2.sort_by(|x, y| x.0.cmp(&y.0));
+        // assert_eq!(filters, parse_json(&mut json_input.as_ref()).unwrap());
+        assert_eq!(v1, v2);
+        // negative tests?
+    }
+}
