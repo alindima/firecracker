@@ -41,12 +41,16 @@ impl fmt::Display for Error {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct SyscallObject {
     syscall: Option<String>,
     syscalls: Option<Vec<String>>,
     action: Option<SeccompAction>,
     #[serde(rename = "args")]
     conditions: Option<Vec<SeccompCondition>>,
+    /// Unused field, represents a comment property in the JSON format
+    #[allow(dead_code)]
+    comment: Option<String>,
 }
 
 impl SyscallObject {
@@ -87,6 +91,7 @@ impl SyscallObject {
 
 // Each thread category maps to one of these
 #[derive(Deserialize, PartialEq, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Filter {
     default_action: SeccompAction,
     filter_action: SeccompAction,
@@ -217,6 +222,7 @@ mod tests {
             syscalls: None,
             conditions: None,
             action: None,
+            comment: None,
         }
     }
 
@@ -527,7 +533,7 @@ mod tests {
             compiler.make_seccomp_filter(wrong_syscall_name_filter),
             Err(Error::SyscallName(
                 "wrong_syscall".to_string(),
-                compiler.arch.clone()
+                compiler.arch
             ))
         );
     }

@@ -144,6 +144,7 @@ pub enum SeccompCmpArgLen {
 
 /// Condition that syscall must match in order to satisfy a rule.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SeccompCondition {
     /// Index of the argument that is to be compared.
     #[serde(rename = "arg_index")]
@@ -157,6 +158,9 @@ pub struct SeccompCondition {
     /// The value that will be compared with the argument value.
     #[serde(rename = "val")]
     value: u64,
+    /// Unused field, represents a comment property in the JSON format
+    #[allow(dead_code)]
+    comment: Option<String>,
 }
 
 /// Actions that `seccomp` can apply to process calling a syscall.
@@ -209,6 +213,7 @@ pub struct SeccompFilter {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[doc(hidden)]
+#[serde(deny_unknown_fields)]
 pub struct sock_filter {
     pub code: ::std::os::raw::c_ushort,
     pub jt: ::std::os::raw::c_uchar,
@@ -253,6 +258,7 @@ impl SeccompCondition {
             arg_len,
             operator,
             value,
+            comment: None,
         };
 
         instance.validate().map(|_| Ok(instance))?
