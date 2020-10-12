@@ -16,7 +16,7 @@ use std::io;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::process;
-use utils::arg_parser::{ArgParser, Argument};
+use utils::arg_parser::{ArgParser, Argument, Arguments as ArgumentsBag};
 
 const SECCOMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -53,6 +53,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[derive(Debug, PartialEq)]
 struct Arguments {
     input_file: String,
     output_file: String,
@@ -82,23 +83,20 @@ fn build_arg_parser() -> ArgParser<'static> {
         )
 }
 
-fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments> {
-    let target_arch = arg_parser
-        .arguments()
-        .value_as_string("target_arch")
-        .and_then(|val| {
-            if !SUPPORTED_ARCHES.contains(&val.as_ref()) {
-                None
-            } else {
-                Some(val)
-            }
-        });
+fn get_argument_values(arguments: &ArgumentsBag) -> Result<Arguments> {
+    let target_arch = arguments.value_as_string("target_arch").and_then(|val| {
+        if !SUPPORTED_ARCHES.contains(&val.as_ref()) {
+            None
+        } else {
+            Some(val)
+        }
+    });
 
     if target_arch.is_none() {
         return Err(Error::InvalidArch);
     }
 
-    let input_file = arg_parser.arguments().value_as_string("input_file");
+    let input_file = arguments.value_as_string("input_file");
     if input_file.is_none() {
         return Err(Error::MissingInputFile);
     }
@@ -107,10 +105,7 @@ fn get_argument_values(arg_parser: &ArgParser) -> Result<Arguments> {
         target_arch: target_arch.unwrap(),
         input_file: input_file.unwrap(),
         // Safe to unwrap because it has a default value
-        output_file: arg_parser
-            .arguments()
-            .value_as_string("output_file")
-            .unwrap(),
+        output_file: arguments.value_as_string("output_file").unwrap(),
     })
 }
 
@@ -163,7 +158,7 @@ fn main() {
         }
     }
 
-    let args = get_argument_values(&arg_parser).unwrap_or_else(|err| {
+    let args = get_argument_values(arg_parser.arguments()).unwrap_or_else(|err| {
         println!(
             "{} \n\n\
             For more information try --help.",
@@ -179,19 +174,161 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::compiler::{Filter, SyscallObject};
-    use super::{parse_json, Error};
+    use super::compiler::{Error as FilterFormatError, Filter, SyscallObject};
+    use super::{build_arg_parser, get_argument_values, parse_json, Arguments, Error};
+    use bincode::Error as BincodeError;
     use seccomp::{SeccompAction, SeccompCmpArgLen::*, SeccompCmpOp::*, SeccompCondition as Cond};
     use std::collections::HashMap;
-    fn empty_syscall_object() -> SyscallObject {
-        SyscallObject {
-            syscall: None,
-            syscalls: None,
-            conditions: None,
-            action: None,
-            comment: None,
-        }
+    use std::io;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_error_messages() {
+        let path = PathBuf::from("/path");
+        assert_eq!(
+            format!(
+                "{}",
+                Error::Bincode(BincodeError::new(bincode::ErrorKind::SizeLimit))
+            ),
+            format!(
+                "Bincode (de)serialization failed: {}",
+                BincodeError::new(bincode::ErrorKind::SizeLimit)
+            )
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::FileFormat(FilterFormatError::MultipleSyscallFields)
+            ),
+            format!("{}", FilterFormatError::MultipleSyscallFields)
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::FileOpen(path.clone(), io::Error::from_raw_os_error(2))
+            ),
+            format!(
+                "Failed to open file {:?}: {}",
+                path,
+                io::Error::from_raw_os_error(2)
+            )
+            .replace("\"", "")
+        );
+        assert_eq!(format!("{}", Error::InvalidArch), "Invalid arch");
+        assert_eq!(format!("{}", Error::MissingInputFile), "Missing input file");
     }
+    #[test]
+    fn test_get_argument_values() {
+        let arg_parser = build_arg_parser();
+        let default_out_file_name = "bpf.out";
+        // correct arguments
+        let arguments = &mut arg_parser.arguments().clone();
+        arguments
+            .parse(
+                vec![
+                    "seccompiler",
+                    "--input_file",
+                    "foo.txt",
+                    "--target_arch",
+                    "x86_64",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .as_ref(),
+            )
+            .unwrap();
+        assert_eq!(
+            get_argument_values(arguments).unwrap(),
+            Arguments {
+                input_file: "foo.txt".to_string(),
+                output_file: default_out_file_name.to_string(),
+                target_arch: "x86_64".to_string()
+            }
+        );
+
+        let arguments = &mut arg_parser.arguments().clone();
+        arguments
+            .parse(
+                vec![
+                    "seccompiler",
+                    "--input_file",
+                    "foo.txt",
+                    "--target_arch",
+                    "x86_64",
+                    "--output_file",
+                    "/path.to/file.txt",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .as_ref(),
+            )
+            .unwrap();
+        assert_eq!(
+            get_argument_values(arguments).unwrap(),
+            Arguments {
+                input_file: "foo.txt".to_string(),
+                output_file: "/path.to/file.txt".to_string(),
+                target_arch: "x86_64".to_string()
+            }
+        );
+
+        // no args
+        let arguments = &mut arg_parser.arguments().clone();
+        assert!(arguments
+            .parse(
+                vec!["seccompiler"]
+                    .into_iter()
+                    .map(String::from)
+                    .collect::<Vec<String>>()
+                    .as_ref(),
+            )
+            .is_err());
+
+        // invalid --target_arch
+        let arguments = &mut arg_parser.arguments().clone();
+        arguments
+            .parse(
+                vec![
+                    "seccompiler",
+                    "--input_file",
+                    "foo.txt",
+                    "--target_arch",
+                    "x86_64das",
+                    "--output_file",
+                    "/path.to/file.txt",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .as_ref(),
+            )
+            .unwrap();
+        assert!(get_argument_values(arguments).is_err());
+        // invalid --target_arch
+        let arguments = &mut arg_parser.arguments().clone();
+        arguments
+            .parse(
+                vec![
+                    "seccompiler",
+                    "--input_file",
+                    "foo.txt",
+                    "--target_arch",
+                    "x86_64das",
+                    "--output_file",
+                    "/path.to/file.txt",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .as_ref(),
+            )
+            .unwrap();
+        assert!(get_argument_values(arguments).is_err());
+    }
+
+    #[allow(clippy::useless_asref)]
     #[test]
     fn test_parse_json() {
         // test with correctly formed JSON
@@ -205,7 +342,6 @@ mod tests {
                 "filter": [
                     {
                         "syscall": "SYS_open",
-                        "comment": "Obvious",
                         "action": "Log"
                     },
                     {
@@ -301,63 +437,68 @@ mod tests {
         let mut filters = HashMap::new();
         filters.insert(
             "thread_1".to_string(),
-            Filter {
-                default_action: SeccompAction::Errno(12),
-                filter_action: SeccompAction::Allow,
-                filter: vec![
-                    SyscallObject {
-                        syscall: Some("SYS_open".to_string()),
-                        action: Some(SeccompAction::Log),
-                        comment: Some("Obvious".to_string()),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscalls: Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
-                        action: Some(SeccompAction::Trap),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_futex".to_string()),
-                        conditions: Some(vec![
+            Filter::new(
+                SeccompAction::Errno(12),
+                SeccompAction::Allow,
+                vec![
+                    SyscallObject::new(
+                        Some("SYS_open".to_string()),
+                        None,
+                        Some(SeccompAction::Log),
+                        None,
+                    ),
+                    SyscallObject::new(
+                        None,
+                        Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
+                        Some(SeccompAction::Trap),
+                        None,
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_futex".to_string()),
+                        None,
+                        None,
+                        Some(vec![
                             Cond::new(2, DWORD, Le, 65).unwrap(),
                             Cond::new(1, QWORD, Ne, 80).unwrap(),
                         ]),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_futex".to_string()),
-                        conditions: Some(vec![
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_futex".to_string()),
+                        None,
+                        Some(SeccompAction::Log),
+                        Some(vec![
                             Cond::new(3, QWORD, Gt, 65).unwrap(),
                             Cond::new(1, QWORD, Lt, 80).unwrap(),
                         ]),
-                        action: Some(SeccompAction::Log),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_futex".to_string()),
-                        conditions: Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_ioctl".to_string()),
-                        conditions: Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
-                        ..empty_syscall_object()
-                    },
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_futex".to_string()),
+                        None,
+                        None,
+                        Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_ioctl".to_string()),
+                        None,
+                        None,
+                        Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
+                    ),
                 ],
-            },
+            ),
         );
 
         filters.insert(
             "thread_2".to_string(),
-            Filter {
-                default_action: SeccompAction::Trap,
-                filter_action: SeccompAction::Allow,
-                filter: vec![SyscallObject {
-                    syscall: Some("SYS_ioctl".to_string()),
-                    conditions: Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
-                    ..empty_syscall_object()
-                }],
-            },
+            Filter::new(
+                SeccompAction::Trap,
+                SeccompAction::Allow,
+                vec![SyscallObject::new(
+                    Some("SYS_ioctl".to_string()),
+                    None,
+                    None,
+                    Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
+                )],
+            ),
         );
 
         let mut v1: Vec<_> = filters.into_iter().collect();
@@ -370,6 +511,5 @@ mod tests {
         v2.sort_by(|x, y| x.0.cmp(&y.0));
         // assert_eq!(filters, parse_json(&mut json_input.as_ref()).unwrap());
         assert_eq!(v1, v2);
-        // negative tests?
     }
 }

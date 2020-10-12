@@ -45,31 +45,31 @@ impl fmt::Display for Error {
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SyscallObject {
-    pub syscall: Option<String>,
-    pub syscalls: Option<Vec<String>>,
-    pub action: Option<SeccompAction>,
+    syscall: Option<String>,
+    syscalls: Option<Vec<String>>,
+    action: Option<SeccompAction>,
     #[serde(rename = "args")]
-    pub conditions: Option<Vec<SeccompCondition>>,
+    conditions: Option<Vec<SeccompCondition>>,
     /// Unused field, represents a comment property in the JSON format
     #[allow(dead_code)]
-    pub comment: Option<String>,
+    comment: Option<String>,
 }
 
 impl SyscallObject {
-    // pub fn new(
-    //     syscall: Option<String>,
-    //     syscalls: Option<Vec<String>>,
-    //     action: Option<SeccompAction>,
-    //     conditions: Option<Vec<SeccompCondition>>,
-    // ) {
-    //     SyscallObject {
-    //         syscall,
-    //         syscalls,
-    //         action,
-    //         conditions,
-    //         comment: None,
-    //     }
-    // }
+    pub fn new(
+        syscall: Option<String>,
+        syscalls: Option<Vec<String>>,
+        action: Option<SeccompAction>,
+        conditions: Option<Vec<SeccompCondition>>,
+    ) -> SyscallObject {
+        SyscallObject {
+            syscall,
+            syscalls,
+            action,
+            conditions,
+            comment: None,
+        }
+    }
     fn is_singular(&self) -> bool {
         self.syscall.is_some() && self.syscalls.is_none()
     }
@@ -107,12 +107,23 @@ impl SyscallObject {
 #[derive(Deserialize, PartialEq, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Filter {
-    pub default_action: SeccompAction,
-    pub filter_action: SeccompAction,
-    pub filter: Vec<SyscallObject>,
+    default_action: SeccompAction,
+    filter_action: SeccompAction,
+    filter: Vec<SyscallObject>,
 }
 
 impl Filter {
+    pub fn new(
+        default_action: SeccompAction,
+        filter_action: SeccompAction,
+        filter: Vec<SyscallObject>,
+    ) -> Filter {
+        Filter {
+            default_action,
+            filter_action,
+            filter,
+        }
+    }
     fn validate(&self) -> Result<()> {
         self.filter
             .iter()
@@ -218,8 +229,8 @@ impl Compiler {
 mod tests {
     use super::{Compiler, Error, Filter, SyscallObject};
     use seccomp::{
-        SeccompAction, SeccompCmpArgLen::*, SeccompCmpOp::*, SeccompCondition as Cond,
-        SeccompFilter, SeccompRule, SyscallRuleSet,
+        Error as SeccompFilterError, SeccompAction, SeccompCmpArgLen::*, SeccompCmpOp::*,
+        SeccompCondition as Cond, SeccompFilter, SeccompRule, SyscallRuleSet,
     };
     use std::collections::HashMap;
 
@@ -231,16 +242,6 @@ mod tests {
         (syscall_number, rules)
     }
 
-    fn empty_syscall_object() -> SyscallObject {
-        SyscallObject {
-            syscall: None,
-            syscalls: None,
-            conditions: None,
-            action: None,
-            comment: None,
-        }
-    }
-
     #[test]
     // test the transformation of Filter objects into SeccompFilter objects
     // we test this private method because we are interested in seeing that the
@@ -249,49 +250,54 @@ mod tests {
         let compiler = Compiler::new(std::env::consts::ARCH);
         // test a well-formed filter. malformed filters are tested in test_compile_blob()
         // this data structure is deserialized from JSON
-        let filter = Filter {
-            default_action: SeccompAction::Trap,
-            filter_action: SeccompAction::Allow,
-            filter: vec![
-                SyscallObject {
-                    syscall: Some("SYS_open".to_string()),
-                    action: Some(SeccompAction::Log),
-                    ..empty_syscall_object()
-                },
-                SyscallObject {
-                    syscalls: Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
-                    action: Some(SeccompAction::Trap),
-                    ..empty_syscall_object()
-                },
-                SyscallObject {
-                    syscall: Some("SYS_futex".to_string()),
-                    conditions: Some(vec![
+        let filter = Filter::new(
+            SeccompAction::Trap,
+            SeccompAction::Allow,
+            vec![
+                SyscallObject::new(
+                    Some("SYS_open".to_string()),
+                    None,
+                    Some(SeccompAction::Log),
+                    None,
+                ),
+                SyscallObject::new(
+                    None,
+                    Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
+                    Some(SeccompAction::Trap),
+                    None,
+                ),
+                SyscallObject::new(
+                    Some("SYS_futex".to_string()),
+                    None,
+                    Some(SeccompAction::Log),
+                    Some(vec![
                         Cond::new(2, DWORD, Le, 65).unwrap(),
                         Cond::new(1, QWORD, Ne, 80).unwrap(),
                     ]),
-                    action: Some(SeccompAction::Log),
-                    ..empty_syscall_object()
-                },
-                SyscallObject {
-                    syscall: Some("SYS_futex".to_string()),
-                    conditions: Some(vec![
+                ),
+                SyscallObject::new(
+                    Some("SYS_futex".to_string()),
+                    None,
+                    None,
+                    Some(vec![
                         Cond::new(3, QWORD, Gt, 65).unwrap(),
                         Cond::new(1, QWORD, Lt, 80).unwrap(),
                     ]),
-                    ..empty_syscall_object()
-                },
-                SyscallObject {
-                    syscall: Some("SYS_futex".to_string()),
-                    conditions: Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
-                    ..empty_syscall_object()
-                },
-                SyscallObject {
-                    syscall: Some("SYS_ioctl".to_string()),
-                    conditions: Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
-                    ..empty_syscall_object()
-                },
+                ),
+                SyscallObject::new(
+                    Some("SYS_futex".to_string()),
+                    None,
+                    None,
+                    Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
+                ),
+                SyscallObject::new(
+                    Some("SYS_ioctl".to_string()),
+                    None,
+                    None,
+                    Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
+                ),
             ],
-        };
+        );
 
         // The expected IR
         let seccomp_filter = SeccompFilter::new(
@@ -358,15 +364,16 @@ mod tests {
         let mut wrong_syscall_properties_filters = HashMap::new();
         wrong_syscall_properties_filters.insert(
             "t2".to_string(),
-            Filter {
-                default_action: SeccompAction::Trap,
-                filter_action: SeccompAction::Allow,
-                filter: vec![SyscallObject {
-                    syscall: Some("SYS_open".to_string()),
-                    syscalls: Some(vec!["SYS_open".to_string()]),
-                    ..empty_syscall_object()
-                }],
-            },
+            Filter::new(
+                SeccompAction::Trap,
+                SeccompAction::Allow,
+                vec![SyscallObject::new(
+                    Some("SYS_open".to_string()),
+                    Some(vec!["SYS_open".to_string()]),
+                    None,
+                    None,
+                )],
+            ),
         );
 
         assert_eq!(
@@ -377,15 +384,16 @@ mod tests {
         let mut syscalls_with_conditions_filters = HashMap::new();
         syscalls_with_conditions_filters.insert(
             "t2".to_string(),
-            Filter {
-                default_action: SeccompAction::Trap,
-                filter_action: SeccompAction::Allow,
-                filter: vec![SyscallObject {
-                    syscalls: Some(vec!["SYS_close".to_string(), "SYS_read".to_string()]),
-                    conditions: Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
-                    ..empty_syscall_object()
-                }],
-            },
+            Filter::new(
+                SeccompAction::Trap,
+                SeccompAction::Allow,
+                vec![SyscallObject::new(
+                    None,
+                    Some(vec!["SYS_close".to_string(), "SYS_read".to_string()]),
+                    None,
+                    Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
+                )],
+            ),
         );
 
         assert_eq!(
@@ -399,14 +407,16 @@ mod tests {
         let mut wrong_syscall_name_filters = HashMap::new();
         wrong_syscall_name_filters.insert(
             "T1".to_string(),
-            Filter {
-                default_action: SeccompAction::Trap,
-                filter_action: SeccompAction::Allow,
-                filter: vec![SyscallObject {
-                    syscall: Some("wrong_syscall".to_string()),
-                    ..empty_syscall_object()
-                }],
-            },
+            Filter::new(
+                SeccompAction::Trap,
+                SeccompAction::Allow,
+                vec![SyscallObject::new(
+                    Some("wrong_syscall".to_string()),
+                    None,
+                    None,
+                    None,
+                )],
+            ),
         );
 
         assert_eq!(
@@ -421,42 +431,78 @@ mod tests {
         let mut correct_filters = HashMap::new();
         correct_filters.insert(
             "Thread1".to_string(),
-            Filter {
-                default_action: SeccompAction::Trap,
-                filter_action: SeccompAction::Allow,
-                filter: vec![
-                    SyscallObject {
-                        syscall: Some("SYS_open".to_string()),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscalls: Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
-                        action: Some(SeccompAction::Trap),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_futex".to_string()),
-                        conditions: Some(vec![
+            Filter::new(
+                SeccompAction::Trap,
+                SeccompAction::Allow,
+                vec![
+                    SyscallObject::new(Some("SYS_open".to_string()), None, None, None),
+                    SyscallObject::new(
+                        None,
+                        Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
+                        Some(SeccompAction::Trap),
+                        None,
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_futex".to_string()),
+                        None,
+                        None,
+                        Some(vec![
                             Cond::new(1, DWORD, Eq, 65).unwrap(),
                             Cond::new(2, QWORD, Le, 80).unwrap(),
                         ]),
-                        ..empty_syscall_object()
-                    },
-                    SyscallObject {
-                        syscall: Some("SYS_futex".to_string()),
-                        conditions: Some(vec![
+                    ),
+                    SyscallObject::new(
+                        Some("SYS_futex".to_string()),
+                        None,
+                        None,
+                        Some(vec![
                             Cond::new(3, DWORD, Eq, 65).unwrap(),
                             Cond::new(2, QWORD, Le, 80).unwrap(),
                         ]),
-                        ..empty_syscall_object()
-                    },
+                    ),
                 ],
-            },
+            ),
         );
 
         // We don't test the BPF compilation in this module.
         // This is done in the seccomp/lib.rs module.
         // Here, we only test the Filter->SeccompFilter transformations.
         assert!(compiler.compile_blob(correct_filters).is_ok());
+    }
+
+    #[test]
+    fn test_error_messages() {
+        assert_eq!(
+            format!("{}", Error::MultipleSyscallFields),
+            "Cannot use both `syscalls` and `syscall` properties in an object"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::SeccompFilter(SeccompFilterError::InvalidArgumentNumber)
+            ),
+            "The seccomp rule contains an invalid argument number."
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::SyscallName("SYS_asdsad".to_string(), "x86_64".to_string())
+            ),
+            format!(
+                "Invalid syscall name: {} for given arch: {}",
+                "SYS_asdsad", "x86_64"
+            )
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::SyscallsWithArgs(vec!["SYS_close".to_string(), "SYS_open".to_string()])
+            ),
+            format!(
+                "The object with the following `syscalls`: {:?} cannot have argument\
+                 conditions. Use the `syscall` property instead or remove the `args` property.",
+                vec!["SYS_close".to_string(), "SYS_open".to_string()]
+            )
+        );
     }
 }
