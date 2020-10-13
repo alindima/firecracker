@@ -4,8 +4,9 @@
 #![allow(missing_docs)]
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
+use std::path::Path;
 
 /// Maximum number of instructions that a BPF program can have.
 const BPF_MAX_LEN: usize = 4096;
@@ -198,6 +199,9 @@ pub type SyscallRuleSet = (i64, Vec<SeccompRule>);
 
 /// Type that associates the syscall number to its SeccompRules
 pub type SeccompRuleMap = BTreeMap<i64, Vec<SeccompRule>>;
+
+/// Type that associates a thread category to a BPF program
+pub type BpfThreadMap = HashMap<String, BpfProgram>;
 
 /// Filter containing rules assigned to syscall numbers.
 #[derive(Clone, Debug, PartialEq)]
@@ -876,48 +880,54 @@ fn EXAMINE_SYSCALL() -> Vec<sock_filter> {
 pub enum SeccompError {
     /// Error while trying to generate a BPF program.
     SeccompFilter(Error),
-    /// Failed to parse to `u8`.
-    Parse(std::num::ParseIntError),
-    /// Seccomp level is an `u8` value, other than 0, 1 or 2.
+    /// Seccomp level is an `u8` value, other than 0 or 2.
     Level(u8),
+    /// Invalid filter path
+    FilterPath(String),
 }
 
 impl Display for SeccompError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match *self {
             SeccompError::SeccompFilter(ref err) => write!(f, "Seccomp error: {}", err),
-            SeccompError::Parse(ref err) => write!(f, "Could not parse to 'u8': {}", err),
             SeccompError::Level(arg) => write!(
                 f,
-                "'{}' isn't a valid value for 'seccomp-level'. Must be 0, 1 or 2.",
+                "'{}' isn't a valid value for 'seccomp-level'. Must be 0, 2 or a valid file path.",
                 arg
             ),
+            SeccompError::FilterPath(ref path) => write!(f, "Invalid filter path: {}", path),
         }
     }
 }
 
 /// Possible values for seccomp level.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SeccompLevel {
     /// Seccomp filtering disabled.
-    None = 0,
-    /// Level of filtering that causes only syscall numbers to be examined.
-    Basic = 1,
+    None,
     /// Level of filtering that causes syscall numbers and parameters to be examined.
-    Advanced = 2,
+    /// Uses the default, hardcoded filter
+    Advanced,
+    /// Uses the user-provided filter file, wrapping the file path
+    File(String),
 }
 
 impl SeccompLevel {
     /// Converts from a seccomp level value of type String to the corresponding SeccompLevel variant
     /// or returns an error if the parsing failed.
     pub fn from_string(seccomp_value: String) -> std::result::Result<Self, SeccompError> {
-        match seccomp_value.parse::<u8>() {
-            Ok(0) => Ok(SeccompLevel::None),
-            Ok(1) => Ok(SeccompLevel::Basic),
-            Ok(2) => Ok(SeccompLevel::Advanced),
-            Ok(level) => Err(SeccompError::Level(level)),
-            Err(err) => Err(SeccompError::Parse(err)),
+        if let Ok(val) = seccomp_value.parse::<u8>() {
+            match val {
+                0 => Ok(SeccompLevel::None),
+                2 => Ok(SeccompLevel::Advanced),
+                level => Err(SeccompError::Level(level)),
+            }
+        } else if Path::new(&seccomp_value).exists() {
+            // points to a valid file
+            Ok(SeccompLevel::File(seccomp_value))
+        } else {
+            Err(SeccompError::FilterPath(seccomp_value))
         }
     }
 }
@@ -929,6 +939,7 @@ mod tests {
     use crate::SeccompCmpOp::*;
     use crate::SeccompCondition as Cond;
     use std::thread;
+    use utils::tempfile::TempFile;
 
     // The type of the `req` parameter is different for the `musl` library. This will enable
     // successful build for other non-musl libraries.
@@ -1779,10 +1790,10 @@ mod tests {
                 "{}",
                 SeccompLevel::from_string("3".to_string()).unwrap_err()
             ),
-            "'3' isn't a valid value for 'seccomp-level'. Must be 0, 1 or 2."
+            "'3' isn't a valid value for 'seccomp-level'. Must be 0, 2 or a valid file path."
         );
         match SeccompLevel::from_string("foo".to_string()) {
-            Err(SeccompError::Parse(_)) => (),
+            Err(SeccompError::FilterPath(_)) => (),
             _ => panic!("Unexpected result"),
         }
         assert_eq!(
@@ -1790,19 +1801,21 @@ mod tests {
                 "{}",
                 SeccompLevel::from_string("foo".to_string()).unwrap_err()
             ),
-            "Could not parse to 'u8': invalid digit found in string"
+            "Invalid filter path: foo"
         );
         assert_eq!(
             SeccompLevel::from_string("0".to_string()).unwrap(),
             SeccompLevel::None
         );
         assert_eq!(
-            SeccompLevel::from_string("1".to_string()).unwrap(),
-            SeccompLevel::Basic
-        );
-        assert_eq!(
             SeccompLevel::from_string("2".to_string()).unwrap(),
             SeccompLevel::Advanced
+        );
+
+        let tempfile = TempFile::new().unwrap();
+        assert_eq!(
+            SeccompLevel::from_string(tempfile.as_path().to_str().unwrap().to_string()).unwrap(),
+            SeccompLevel::File(tempfile.as_path().to_str().unwrap().to_string())
         );
     }
 }

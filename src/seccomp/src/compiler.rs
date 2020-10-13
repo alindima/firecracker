@@ -1,6 +1,6 @@
 use super::syscall_table::SyscallTable;
 use seccomp::{
-    BpfProgram, Error as SeccompFilterError, SeccompAction, SeccompCondition, SeccompFilter,
+    BpfThreadMap, Error as SeccompFilterError, SeccompAction, SeccompCondition, SeccompFilter,
     SeccompRule, SeccompRuleMap,
 };
 use serde::Deserialize;
@@ -158,10 +158,7 @@ impl Compiler {
             .unwrap()
     }
 
-    pub fn compile_blob(
-        &self,
-        filters: HashMap<String, Filter>,
-    ) -> Result<HashMap<String, BpfProgram>> {
+    pub fn compile_blob(&self, filters: HashMap<String, Filter>) -> Result<BpfThreadMap> {
         self.validate_filters(&filters)?;
         let mut bpf_map = HashMap::new();
 

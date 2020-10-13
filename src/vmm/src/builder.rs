@@ -29,7 +29,7 @@ use devices::virtio::{Block, MmioTransport, Net, VirtioDevice, Vsock, VsockUnixB
 use kernel::cmdline::Cmdline as KernelCmdline;
 use logger::warn;
 use polly::event_manager::{Error as EventManagerError, EventManager, Subscriber};
-use seccomp::{BpfProgramRef, SeccompFilter};
+use seccomp::{BpfThreadMap, SeccompFilter};
 #[cfg(target_arch = "x86_64")]
 use snapshot::Persist;
 use utils::eventfd::EventFd;
@@ -282,7 +282,7 @@ fn create_vmm_and_vcpus(
 pub fn build_microvm_for_boot(
     vm_resources: &super::resources::VmResources,
     event_manager: &mut EventManager,
-    seccomp_filter: BpfProgramRef,
+    seccomp_filters: &mut BpfThreadMap,
 ) -> std::result::Result<Arc<Mutex<Vmm>>, StartMicrovmError> {
     use self::StartMicrovmError::*;
     let boot_config = vm_resources.boot_source().ok_or(MissingKernelConfig)?;
@@ -344,13 +344,14 @@ pub fn build_microvm_for_boot(
     )?;
 
     // Move vcpus to their own threads and start their state machine in the 'Paused' state.
-    vmm.start_vcpus(vcpus, seccomp_filter).map_err(Internal)?;
+    vmm.start_vcpus(vcpus, seccomp_filters.remove("Vcpu").unwrap())
+        .map_err(Internal)?;
 
     // Load seccomp filters for the VMM thread.
     // Execution panics if filters cannot be loaded, use --seccomp-level=0 if skipping filters
     // altogether is the desired behaviour.
     // Keep this as the last step before resuming vcpus.
-    SeccompFilter::apply(seccomp_filter.to_vec())
+    SeccompFilter::apply(seccomp_filters.remove("Vmm").unwrap())
         .map_err(Error::SeccompFilters)
         .map_err(Internal)?;
 
@@ -375,7 +376,7 @@ pub fn build_microvm_from_snapshot(
     microvm_state: MicrovmState,
     guest_memory: GuestMemoryMmap,
     track_dirty_pages: bool,
-    seccomp_filter: BpfProgramRef,
+    seccomp_filters: &mut BpfThreadMap,
 ) -> std::result::Result<Arc<Mutex<Vmm>>, StartMicrovmError> {
     use self::StartMicrovmError::*;
     let vcpu_count = u8::try_from(microvm_state.vcpu_states.len())
@@ -408,7 +409,7 @@ pub fn build_microvm_from_snapshot(
             .map_err(RestoreMicrovmState)?;
 
     // Move vcpus to their own threads and start their state machine in the 'Paused' state.
-    vmm.start_vcpus(vcpus, seccomp_filter)
+    vmm.start_vcpus(vcpus, seccomp_filters.remove("Vcpu").unwrap())
         .map_err(StartMicrovmError::Internal)?;
 
     // Restore vcpus kvm state.
@@ -422,7 +423,7 @@ pub fn build_microvm_from_snapshot(
 
     // Load seccomp filters for the VMM thread.
     // Keep this as the last step of the building process.
-    SeccompFilter::apply(seccomp_filter.to_vec())
+    SeccompFilter::apply(seccomp_filters.remove("Vmm").unwrap())
         .map_err(Error::SeccompFilters)
         .map_err(StartMicrovmError::Internal)?;
 

@@ -7,7 +7,7 @@ mod syscall_table;
 
 use bincode::Error as BincodeError;
 use compiler::{Compiler, Error as FilterFormatError, Filter};
-use seccomp::BpfProgram;
+use seccomp::BpfThreadMap;
 use serde_json::error::Error as JSONError;
 use std::collections::HashMap;
 use std::fmt;
@@ -121,8 +121,7 @@ fn compile(args: &Arguments) -> Result<()> {
     let compiler = Compiler::new(&args.target_arch);
 
     // transform the IR into a Map of BPFPrograms
-    let bpf_data: HashMap<String, BpfProgram> =
-        compiler.compile_blob(filters).map_err(Error::FileFormat)?;
+    let bpf_data: BpfThreadMap = compiler.compile_blob(filters).map_err(Error::FileFormat)?;
 
     // serialize the BPF programs & output them to a file
     let output_file = File::create(&args.output_file)

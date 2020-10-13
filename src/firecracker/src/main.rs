@@ -12,11 +12,11 @@ use std::sync::{Arc, Mutex};
 
 use logger::{error, info, Metric, LOGGER, METRICS};
 use polly::event_manager::EventManager;
-use seccomp::{BpfProgram, SeccompLevel};
+use seccomp::{BpfThreadMap, SeccompLevel};
 use utils::arg_parser::{ArgParser, Argument};
 use utils::terminal::Terminal;
 use utils::validators::validate_instance_id;
-use vmm::default_syscalls::get_seccomp_filter;
+use vmm::default_syscalls::get_seccomp_filters;
 use vmm::resources::VmResources;
 use vmm::signal_handler::register_signal_handlers;
 use vmm::vmm_config::instance_info::InstanceInfo;
@@ -83,8 +83,8 @@ fn main() {
                 .takes_value(true)
                 .default_value("2")
                 .help(
-                    "Level of seccomp filtering (0: no filter | 1: filter by syscall number | 2: filter by syscall \
-                     number and argument values) that will be passed to executed path as argument."
+                    "Level of seccomp filtering (0: no filter | 2: default advanced filter  |\
+                     \"path\" to custom filter file)."
                 ),
         )
         .arg(
@@ -204,7 +204,7 @@ fn main() {
 
     // It's safe to unwrap here because the field's been provided with a default value.
     let seccomp_level = arguments.value_as_string("seccomp-level").unwrap();
-    let seccomp_filter = get_seccomp_filter(
+    let mut seccomp_filters = get_seccomp_filters(
         SeccompLevel::from_string(seccomp_level).unwrap_or_else(|err| {
             panic!("Invalid value for seccomp-level: {}", err);
         }),
@@ -237,7 +237,7 @@ fn main() {
                 .expect("'start-time-cpu-us' parameter expected to be of 'u64' type.")
         });
         api_server_adapter::run_with_api(
-            seccomp_filter,
+            &mut seccomp_filters,
             vmm_config_json,
             bind_path,
             instance_info,
@@ -246,8 +246,12 @@ fn main() {
             boot_timer_enabled,
         );
     } else {
+        let mut seccomp_filters: BpfThreadMap = seccomp_filters
+            .into_iter()
+            .filter(|(k, _)| k == "Vmm" || k == "Vcpu")
+            .collect();
         run_without_api(
-            seccomp_filter,
+            &mut seccomp_filters,
             vmm_config_json,
             &instance_info,
             boot_timer_enabled,
@@ -257,7 +261,7 @@ fn main() {
 
 // Configure and start a microVM as described by the command-line JSON.
 fn build_microvm_from_json(
-    seccomp_filter: BpfProgram,
+    seccomp_filters: &mut BpfThreadMap,
     event_manager: &mut EventManager,
     config_json: String,
     instance_info: &InstanceInfo,
@@ -272,7 +276,7 @@ fn build_microvm_from_json(
             process::exit(i32::from(vmm::FC_EXIT_CODE_BAD_CONFIGURATION));
         });
     vm_resources.boot_timer = boot_timer_enabled;
-    let vmm = vmm::builder::build_microvm_for_boot(&vm_resources, event_manager, &seccomp_filter)
+    let vmm = vmm::builder::build_microvm_for_boot(&vm_resources, event_manager, seccomp_filters)
         .unwrap_or_else(|err| {
             error!(
                 "Building VMM configured from cmdline json failed: {:?}",
@@ -286,7 +290,7 @@ fn build_microvm_from_json(
 }
 
 fn run_without_api(
-    seccomp_filter: BpfProgram,
+    seccomp_filters: &mut BpfThreadMap,
     config_json: Option<String>,
     instance_info: &InstanceInfo,
     bool_timer_enabled: bool,
@@ -303,7 +307,7 @@ fn run_without_api(
     // - VmResources is not used without api,
     // - An `Arc` reference of the built `Vmm` is plugged in the `EventManager` by the builder.
     build_microvm_from_json(
-        seccomp_filter,
+        seccomp_filters,
         &mut event_manager,
         // Safe to unwrap since '--no-api' requires this to be set.
         config_json.unwrap(),
