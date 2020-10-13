@@ -5,7 +5,6 @@ use seccomp::{
     SeccompCmpArgLen as ArgLen, SeccompCmpOp::Eq, SeccompCondition as Cond, SeccompFilter,
     SeccompRule,
 };
-use std::convert::TryInto;
 use std::fs::File;
 use utils::signal::sigrtmin;
 
@@ -169,7 +168,7 @@ pub fn get_default_filters() -> Result<BpfThreadMap, Error> {
         .collect(),
         SeccompAction::Trap,
     )?
-    .try_into()?;
+    .into_bpf(std::env::consts::ARCH)?;
 
     filters.insert("api".to_string(), filter.clone());
     filters.insert("vmm".to_string(), filter.clone());

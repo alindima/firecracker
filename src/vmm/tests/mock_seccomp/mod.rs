@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::collections::BTreeMap;
-use std::convert::TryInto;
 
 use libc;
 
@@ -304,7 +303,7 @@ impl MockSeccomp {
 impl Into<BpfProgram> for MockSeccomp {
     fn into(self) -> BpfProgram {
         let flt = SeccompFilter::new(self.rules, self.default_action).unwrap();
-        let bpf_prog: BpfProgram = flt.try_into().unwrap();
+        let bpf_prog: BpfProgram = flt.into_bpf(std::env::consts::ARCH).unwrap();
         bpf_prog
     }
 }

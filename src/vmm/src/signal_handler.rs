@@ -160,7 +160,8 @@ mod tests {
     use super::*;
 
     use libc::{cpu_set_t, syscall};
-    use std::{convert::TryInto, mem, process, thread};
+    use std::env::consts::ARCH;
+    use std::{mem, process, thread};
 
     use seccomp::{allow_syscall, SeccompAction, SeccompFilter};
 
@@ -214,7 +215,7 @@ mod tests {
             )
             .unwrap();
 
-            assert!(SeccompFilter::apply(filter.try_into().unwrap()).is_ok());
+            assert!(SeccompFilter::apply(filter.into_bpf(ARCH).unwrap()).is_ok());
             assert_eq!(METRICS.seccomp.num_faults.count(), 0);
 
             // Call the blacklisted `SYS_mkdirat`.
