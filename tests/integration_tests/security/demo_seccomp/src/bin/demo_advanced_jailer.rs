@@ -45,7 +45,7 @@ fn main() {
         .unwrap();
 
     // Loads filters.
-    SeccompFilter::apply(filter.try_into().unwrap()).unwrap();
+    SeccompFilter::apply(filter.into_bpf(std::env::consts::ARCH).unwrap()).unwrap();
 
     Command::new(exec_file)
         .stdin(Stdio::inherit())

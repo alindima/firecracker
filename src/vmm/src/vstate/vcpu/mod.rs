@@ -588,8 +588,8 @@ pub enum VcpuEmulation {
 
 #[cfg(test)]
 mod tests {
+    use std::env::consts::ARCH;
     use std::{
-        convert::TryInto,
         fmt,
         sync::{Arc, Barrier},
         time::Duration,
@@ -722,7 +722,7 @@ mod tests {
                 .expect("failed to configure vcpu");
         }
 
-        let seccomp_filter = seccomp::SeccompFilter::empty().try_into().unwrap();
+        let seccomp_filter = seccomp::SeccompFilter::empty().into_bpf(ARCH).unwrap();
         let vcpu_handle = vcpu
             .start_threaded(seccomp_filter)
             .expect("failed to start vcpu");

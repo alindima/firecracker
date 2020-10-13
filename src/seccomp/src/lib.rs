@@ -42,7 +42,6 @@
 //! Without a signal handler in place, the process will die with exit code 159 (128 + `SIGSYS`).
 //!
 //! ```should_panic
-//! use std::convert::TryInto;
 //! use seccomp::*;
 //!
 //! let buf = "Hello, world!";
@@ -61,7 +60,7 @@
 //!         .collect(),
 //!         SeccompAction::Trap,
 //! )
-//!     .unwrap().try_into().unwrap();
+//!     .unwrap().into_bpf(std::env::consts::ARCH).unwrap();
 //!     SeccompFilter::apply(filter).unwrap();
 //! unsafe {
 //!     libc::syscall(
@@ -110,7 +109,6 @@
 //!
 //! ```should_panic
 //! use seccomp::*;
-//! use std::convert::TryInto;
 //! use std::mem;
 //! use std::process::exit;
 //!
@@ -187,7 +185,7 @@
 //!         )
 //!         .unwrap();
 //!
-//!     SeccompFilter::apply(filter.try_into().unwrap()).unwrap();
+//!     SeccompFilter::apply(filter.into_bpf(std::env::consts::ARCH).unwrap()).unwrap();
 //!
 //!     unsafe {
 //!         libc::syscall(
@@ -231,7 +229,7 @@
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`action`]: struct.SeccompRule.html#action
 use std::collections::{BTreeMap, HashMap};
-use std::convert::TryInto;
+use std::convert::{Into, TryInto};
 use std::fmt::{Display, Formatter};
 
 /// Maximum number of instructions that a BPF program can have.
@@ -274,12 +272,10 @@ const SECCOMP_RET_MASK: u32 = 0x0000_ffff;
 // Architecture identifier.
 // See /usr/include/linux/audit.h .
 
-#[cfg(target_arch = "x86_64")]
 // Defined as:
 // `#define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)`
 const AUDIT_ARCH_X86_64: u32 = 62 | 0x8000_0000 | 0x4000_0000;
 
-#[cfg(target_arch = "aarch64")]
 // Defined as:
 // `#define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)`
 const AUDIT_ARCH_AARCH64: u32 = 183 | 0x8000_0000 | 0x4000_0000;
@@ -307,7 +303,7 @@ const SECCOMP_DATA_ARGS_OFFSET: u8 = 16;
 const SECCOMP_DATA_ARG_SIZE: u8 = 8;
 
 /// Seccomp errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /// Attempting to add an empty vector of rules to the rule chain of a syscall.
     EmptyRulesVector,
@@ -319,6 +315,8 @@ pub enum Error {
     InvalidArgumentNumber,
     /// Failed to load seccomp rules into the kernel.
     Load(i32),
+    /// Error related to the target arch.
+    Arch(TargetArchError),
 }
 
 impl Display for Error {
@@ -337,11 +335,74 @@ impl Display for Error {
                 "Failed to load seccomp rules into the kernel with error {}.",
                 err
             ),
+            Arch(ref err) => write!(f, "{:?}", err),
         }
     }
 }
 
 type Result<T> = std::result::Result<T, Error>;
+
+/// Supported target architectures.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TargetArch {
+    /// x86_64 arch
+    x86_64,
+    /// aarch64 arch
+    aarch64,
+}
+
+/// Errors related to target arch.
+#[derive(Debug, PartialEq)]
+pub enum TargetArchError {
+    /// Invalid string.
+    InvalidString(String),
+}
+
+impl Display for TargetArchError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        use self::TargetArchError::*;
+
+        match *self {
+            InvalidString(ref arch) => write!(f, "Invalid target arch string: {}", arch),
+        }
+    }
+}
+
+impl TargetArch {
+    /// Get the arch audit value.
+    fn get_audit_value(self) -> u32 {
+        match self {
+            TargetArch::x86_64 => AUDIT_ARCH_X86_64,
+            TargetArch::aarch64 => AUDIT_ARCH_AARCH64,
+        }
+    }
+
+    /// Get the string representation.
+    fn to_string(self) -> &'static str {
+        match self {
+            TargetArch::x86_64 => "x86_64",
+            TargetArch::aarch64 => "aarch64",
+        }
+    }
+}
+
+impl TryInto<TargetArch> for &str {
+    type Error = TargetArchError;
+    fn try_into(self) -> std::result::Result<TargetArch, TargetArchError> {
+        match self.to_lowercase().as_str() {
+            "x86_64" => Ok(TargetArch::x86_64),
+            "aarch64" => Ok(TargetArch::aarch64),
+            _ => Err(TargetArchError::InvalidString(self.to_string())),
+        }
+    }
+}
+
+impl Into<&str> for TargetArch {
+    fn into(self) -> &'static str {
+        self.to_string()
+    }
+}
 
 /// Comparison to perform when matching a condition.
 #[derive(Clone, Debug)]
@@ -442,7 +503,7 @@ pub fn allow_syscall_if(syscall_number: i64, rules: Vec<SeccompRule>) -> Syscall
 #[derive(Clone, Debug)]
 pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
-    rules: BTreeMap<i64, Vec<SeccompRule>>,
+    rules: SeccompRuleMap,
     /// Default action to apply to syscall numbers that do not exist in the hash map.
     default_action: SeccompAction,
 }
@@ -872,10 +933,7 @@ impl SeccompFilter {
     ///
     /// * `rules` - Map of syscall numbers and the rules that will be applied to each of them.
     /// * `default_action` - Action taken for all syscalls that do not match any rule.
-    pub fn new(
-        rules: BTreeMap<i64, Vec<SeccompRule>>,
-        default_action: SeccompAction,
-    ) -> Result<Self> {
+    pub fn new(rules: SeccompRuleMap, default_action: SeccompAction) -> Result<Self> {
         // All inserted syscalls must have at least one rule, otherwise BPF code will break.
         for (_, value) in rules.iter() {
             if value.is_empty() {
@@ -914,15 +972,11 @@ impl SeccompFilter {
     /// # Arguments
     ///
     /// * `filters` - BPF program containing the seccomp rules.
-    pub fn apply(filters: BpfProgram) -> Result<()> {
+    pub fn apply(bpf_filter: BpfProgram) -> Result<()> {
         // If the program is empty, skip this step.
-        if filters.is_empty() {
+        if bpf_filter.is_empty() {
             return Ok(());
         }
-
-        let mut bpf_filter = Vec::new();
-        bpf_filter.extend(VALIDATE_ARCHITECTURE());
-        bpf_filter.extend(filters);
 
         unsafe {
             {
@@ -1011,11 +1065,9 @@ impl SeccompFilter {
             default_action: SeccompAction::Allow,
         }
     }
-}
 
-impl TryInto<BpfProgram> for SeccompFilter {
-    type Error = Error;
-    fn try_into(self) -> Result<BpfProgram> {
+    /// Compiles the Seccomp filter into BPF statements. Receives the target_arch as input.
+    pub fn into_bpf(self, target_arch: &str) -> Result<BpfProgram> {
         // If no rules are set up, return an empty vector.
         if self.rules.is_empty() {
             return Ok(vec![]);
@@ -1048,9 +1100,15 @@ impl TryInto<BpfProgram> for SeccompFilter {
 
         // Finally, builds the translated filter by consuming the accumulator.
         let mut result = Vec::with_capacity(filter_len);
+        // Add the precursory architecture check
+        result.extend(VALIDATE_ARCHITECTURE(target_arch)?);
         accumulator
             .into_iter()
             .for_each(|mut instructions| result.append(&mut instructions));
+
+        if result.len() >= BPF_MAX_LEN {
+            return Err(Error::FilterTooLarge);
+        }
 
         Ok(result)
     }
@@ -1090,15 +1148,14 @@ fn BPF_STMT(code: u16, k: u32) -> sock_filter {
 /// Builds a sequence of BPF instructions that validate the underlying architecture.
 #[allow(non_snake_case)]
 #[inline(always)]
-fn VALIDATE_ARCHITECTURE() -> Vec<sock_filter> {
-    vec![
+fn VALIDATE_ARCHITECTURE(target_arch: &str) -> Result<Vec<sock_filter>> {
+    let target_arch: TargetArch = target_arch.try_into().map_err(Error::Arch)?;
+    let audit_arch_value = target_arch.get_audit_value();
+    Ok(vec![
         BPF_STMT(BPF_LD + BPF_W + BPF_ABS, 4),
-        #[cfg(target_arch = "x86_64")]
-        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, AUDIT_ARCH_X86_64, 1, 0),
-        #[cfg(target_arch = "aarch64")]
-        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, AUDIT_ARCH_AARCH64, 1, 0),
+        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, audit_arch_value, 1, 0),
         BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_KILL),
-    ]
+    ])
 }
 
 /// Builds a sequence of BPF instructions that are followed by syscall examination.
@@ -1132,6 +1189,7 @@ mod tests {
     use crate::SeccompCmpArgLen as ArgLen;
     use crate::SeccompCmpOp::*;
     use crate::SeccompCondition as Cond;
+    use std::env::consts::ARCH;
     use std::thread;
 
     // The type of the `req` parameter is different for the `musl` library. This will enable
@@ -1182,7 +1240,7 @@ mod tests {
         // the seccomp filter for the entire unit tests process.
         let errno = thread::spawn(move || {
             // Apply seccomp filter.
-            SeccompFilter::apply(filter.try_into().unwrap()).unwrap();
+            SeccompFilter::apply(filter.into_bpf(ARCH).unwrap()).unwrap();
 
             // Call the validation fn.
             validation_fn();
@@ -1761,7 +1819,9 @@ mod tests {
 
         let filter = create_test_bpf_filter(ArgLen::DWORD);
 
-        let instructions = vec![
+        let mut instructions = Vec::new();
+        instructions.extend(VALIDATE_ARCHITECTURE(ARCH).unwrap());
+        instructions.extend(vec![
             BPF_STMT(0x20, 0),
             BPF_JUMP(0x15, 1, 0, 1),
             BPF_STMT(0x05, 1),
@@ -1793,9 +1853,9 @@ mod tests {
             BPF_STMT(0x06, 0x7fff_0000),
             BPF_STMT(0x06, 0x0003_0000),
             BPF_STMT(0x06, 0x0003_0000),
-        ];
+        ]);
 
-        let bpfprog: BpfProgram = filter.try_into().unwrap();
+        let bpfprog: BpfProgram = filter.into_bpf(ARCH).unwrap();
         assert_eq!(bpfprog, instructions);
     }
 
@@ -1810,7 +1870,9 @@ mod tests {
 
         let filter = create_test_bpf_filter(ArgLen::QWORD);
 
-        let instructions = vec![
+        let mut instructions = Vec::new();
+        instructions.extend(VALIDATE_ARCHITECTURE(ARCH).unwrap());
+        instructions.extend(vec![
             BPF_STMT(0x20, 0),
             BPF_JUMP(0x15, 1, 0, 1),
             BPF_STMT(0x05, 1),
@@ -1859,9 +1921,9 @@ mod tests {
             BPF_STMT(0x06, 0x7fff_0000),
             BPF_STMT(0x06, 0x0003_0000),
             BPF_STMT(0x06, 0x0003_0000),
-        ];
+        ]);
 
-        let bpfprog: BpfProgram = filter.try_into().unwrap();
+        let bpfprog: BpfProgram = filter.into_bpf(ARCH).unwrap();
         assert_eq!(bpfprog, instructions);
     }
 
@@ -1891,8 +1953,15 @@ mod tests {
 
     #[test]
     fn test_bpf_functions() {
+        assert_eq!(
+            VALIDATE_ARCHITECTURE("mips"),
+            Err(Error::Arch(TargetArchError::InvalidString(
+                "mips".to_string()
+            )))
+        );
+
         {
-            let ret = VALIDATE_ARCHITECTURE();
+            let ret = VALIDATE_ARCHITECTURE(ARCH).unwrap();
             let instructions = vec![
                 sock_filter {
                     code: 32,
@@ -1953,6 +2022,13 @@ mod tests {
             format!("{}", Error::Load(42)),
             "Failed to load seccomp rules into the kernel with error 42."
         );
+        assert_eq!(
+            format!(
+                "{}",
+                Error::Arch(TargetArchError::InvalidString("lala".to_string()))
+            ),
+            format!("{:?}", TargetArchError::InvalidString("lala".to_string()))
+        );
     }
 
     #[test]
@@ -1969,7 +2045,7 @@ mod tests {
     fn test_seccomp_empty() {
         let rc1 = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
         assert_eq!(rc1, 0);
-        SeccompFilter::apply(SeccompFilter::empty().try_into().unwrap()).unwrap();
+        SeccompFilter::apply(SeccompFilter::empty().into_bpf(ARCH).unwrap()).unwrap();
         let rc2 = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
         assert_eq!(rc2, 0);
     }
