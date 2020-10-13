@@ -32,7 +32,7 @@ use arch::DeviceType;
 use devices::virtio::{Block, MmioTransport, Net, TYPE_BLOCK, TYPE_NET};
 use logger::{info, update_metric_with_elapsed_time, METRICS};
 use polly::event_manager::EventManager;
-use seccomp::BpfProgram;
+use seccomp::BpfThreadMap;
 
 /// This enum represents the public interface of the VMM. Each action contains various
 /// bits of information (ids, paths, etc.).
@@ -178,7 +178,7 @@ pub enum VmmData {
 
 /// Enables pre-boot setup and instantiation of a Firecracker VMM.
 pub struct PrebootApiController<'a> {
-    seccomp_filter: BpfProgram,
+    seccomp_filters: &'a mut BpfThreadMap,
     instance_info: InstanceInfo,
     vm_resources: &'a mut VmResources,
     event_manager: &'a mut EventManager,
@@ -188,13 +188,13 @@ pub struct PrebootApiController<'a> {
 impl<'a> PrebootApiController<'a> {
     /// Constructor for the PrebootApiController.
     pub fn new(
-        seccomp_filter: BpfProgram,
+        seccomp_filters: &'a mut BpfThreadMap,
         instance_info: InstanceInfo,
         vm_resources: &'a mut VmResources,
         event_manager: &'a mut EventManager,
     ) -> PrebootApiController<'a> {
         PrebootApiController {
-            seccomp_filter,
+            seccomp_filters,
             instance_info,
             vm_resources,
             event_manager,
@@ -208,7 +208,7 @@ impl<'a> PrebootApiController<'a> {
     ///
     /// Returns a populated `VmResources` object and a running `Vmm` object.
     pub fn build_microvm_from_requests<F, G>(
-        seccomp_filter: BpfProgram,
+        seccomp_filters: &mut BpfThreadMap,
         event_manager: &mut EventManager,
         instance_info: InstanceInfo,
         recv_req: F,
@@ -222,7 +222,7 @@ impl<'a> PrebootApiController<'a> {
         let mut vm_resources = VmResources::default();
         vm_resources.boot_timer = boot_timer_enabled;
         let mut preboot_controller = PrebootApiController::new(
-            seccomp_filter,
+            seccomp_filters,
             instance_info,
             &mut vm_resources,
             event_manager,
@@ -298,7 +298,7 @@ impl<'a> PrebootApiController<'a> {
             StartMicroVm => builder::build_microvm_for_boot(
                 &self.vm_resources,
                 &mut self.event_manager,
-                &self.seccomp_filter,
+                &mut self.seccomp_filters,
             )
             .map(|vmm| {
                 self.built_vmm = Some(vmm);
@@ -322,7 +322,7 @@ impl<'a> PrebootApiController<'a> {
 
         let loaded_vmm = persist::load_snapshot(
             &mut self.event_manager,
-            &self.seccomp_filter,
+            &mut self.seccomp_filters,
             load_params,
             VERSION_MAP.clone(),
         );

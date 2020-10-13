@@ -34,6 +34,8 @@
   run.
 - Added devtool test `-m|--cpuset-mems` flag for memory confinement when tests
   run.
+- Added `--no-seccomp` parameter for disabling the default seccomp filters.
+- Added `--seccomp-filter` parameter for supplying user-provided, custom filters.
 
 ### Fixed
 
@@ -51,6 +53,7 @@
   or the ones defined indirectly by using `--node`.
 - Changed `devtool build` to build jailer binary for `musl` only targets. Building
   jailer binary for `non-musl` targets have been removed.
+- Removed the `--seccomp-level parameter`.
 
 ## [0.22.0]
 
