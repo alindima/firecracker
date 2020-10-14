@@ -228,6 +228,7 @@
 //! [`SeccompAction`]: enum.SeccompAction.html
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`action`]: struct.SeccompRule.html#action
+use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 
@@ -302,7 +303,7 @@ const SECCOMP_DATA_ARGS_OFFSET: u8 = 16;
 const SECCOMP_DATA_ARG_SIZE: u8 = 8;
 
 /// Seccomp errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /// Attempting to add an empty vector of rules to the rule chain of a syscall.
     EmptyRulesVector,
@@ -339,7 +340,7 @@ impl Display for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 /// Comparison to perform when matching a condition.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum SeccompCmpOp {
     /// Argument value is equal to the specified value.
     Eq,
@@ -358,7 +359,7 @@ pub enum SeccompCmpOp {
 }
 
 /// Seccomp argument value length.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum SeccompCmpArgLen {
     /// Argument value length is 4 bytes.
     DWORD,
@@ -367,20 +368,28 @@ pub enum SeccompCmpArgLen {
 }
 
 /// Condition that syscall must match in order to satisfy a rule.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SeccompCondition {
     /// Index of the argument that is to be compared.
+    #[serde(rename = "arg_index")]
     arg_number: u8,
     /// Length of the argument value that is to be compared.
+    #[serde(rename = "arg_type")]
     arg_len: SeccompCmpArgLen,
     /// Comparison to perform.
+    #[serde(rename = "op")]
     operator: SeccompCmpOp,
     /// The value that will be compared with the argument value.
+    #[serde(rename = "val")]
     value: u64,
+    /// Unused field, represents a comment property in the JSON format
+    #[allow(dead_code)]
+    comment: Option<String>,
 }
 
 /// Actions that `seccomp` can apply to process calling a syscall.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub enum SeccompAction {
     /// Allows syscall.
     Allow,
@@ -401,7 +410,7 @@ pub enum SeccompAction {
 /// If all conditions match then rule gets matched.
 /// The action of the first rule that matches will be applied to the calling process.
 /// If no rule matches the default action is applied.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SeccompRule {
     /// Conditions of rule that need to match in order for the rule to get matched.
     conditions: Vec<SeccompCondition>,
@@ -434,7 +443,7 @@ pub fn allow_syscall_if(syscall_number: i64, rules: Vec<SeccompRule>) -> Syscall
 }
 
 /// Filter containing rules assigned to syscall numbers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SeccompFilter {
     /// Map of syscall numbers and corresponding rule chains.
     rules: SeccompRuleMap,
@@ -486,17 +495,25 @@ impl SeccompCondition {
         operator: SeccompCmpOp,
         value: u64,
     ) -> Result<Self> {
-        // Checks that the given argument number is valid.
-        if arg_number > ARG_NUMBER_MAX {
-            return Err(Error::InvalidArgumentNumber);
-        }
-
-        Ok(Self {
+        let instance = Self {
             arg_number,
             arg_len,
             operator,
             value,
-        })
+            comment: None,
+        };
+
+        instance.validate().map(|_| Ok(instance))?
+    }
+
+    /// Validates the SeccompCondition data
+    pub fn validate(&self) -> Result<()> {
+        // Checks that the given argument number is valid.
+        if self.arg_number > ARG_NUMBER_MAX {
+            return Err(Error::InvalidArgumentNumber);
+        }
+
+        Ok(())
     }
 
     /// Splits the [`SeccompCondition`] into 32 bit chunks and offsets.
