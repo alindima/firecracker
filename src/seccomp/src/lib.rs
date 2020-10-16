@@ -228,7 +228,7 @@
 //! [`SeccompAction`]: enum.SeccompAction.html
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`action`]: struct.SeccompRule.html#action
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 
@@ -454,7 +454,7 @@ pub struct SeccompFilter {
 // BPF instruction structure definition.
 // See /usr/include/linux/filter.h .
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[doc(hidden)]
 pub struct sock_filter {
     pub code: ::std::os::raw::c_ushort,
