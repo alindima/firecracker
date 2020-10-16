@@ -228,9 +228,11 @@
 //! [`SeccompAction`]: enum.SeccompAction.html
 //! [`SeccompFilter`]: struct.SeccompFilter.html
 //! [`action`]: struct.SeccompRule.html#action
+use bincode::Error as BincodeError;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
+use std::io::Read;
 
 /// Maximum number of instructions that a BPF program can have.
 const BPF_MAX_LEN: usize = 4096;
@@ -1128,6 +1130,36 @@ impl Display for SeccompError {
     }
 }
 
+/// Binary Deserialization errors
+#[derive(Debug)]
+pub enum DeserializationError {
+    /// Error when doing bincode deserialization
+    Bincode(BincodeError),
+}
+
+impl Display for DeserializationError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        use self::DeserializationError::*;
+
+        match *self {
+            Bincode(ref err) => write!(f, "Bincode deserialization failed: {}", err),
+        }
+    }
+}
+
+/// Helper function for deserializing the BPF file into a collection of usable BPF filters.
+pub fn deserialize_binary(
+    reader: &mut dyn Read,
+) -> std::result::Result<BpfThreadMap, DeserializationError> {
+    Ok(
+        bincode::deserialize_from::<&mut dyn Read, BpfThreadMap>(reader)
+            .map_err(DeserializationError::Bincode)?
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v))
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1961,5 +1993,32 @@ mod tests {
         SeccompFilter::apply(SeccompFilter::empty().into_bpf(ARCH).unwrap()).unwrap();
         let rc2 = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
         assert_eq!(rc2, 0);
+    }
+
+    #[test]
+    fn test_deserialize_binary() {
+        // test that the binary deserialization is correct, and that the thread keys
+        // have been lowercased
+        let bpf_prog = vec![
+            sock_filter {
+                code: 32,
+                jt: 0,
+                jf: 0,
+                k: 0,
+            },
+            sock_filter {
+                code: 32,
+                jt: 0,
+                jf: 0,
+                k: 4,
+            },
+        ];
+        let mut filter_map = BpfThreadMap::new();
+        filter_map.insert("VcpU".to_string(), bpf_prog.clone());
+        let bytes = bincode::serialize(&filter_map).unwrap();
+
+        let mut expected_res = BpfThreadMap::new();
+        expected_res.insert("vcpu".to_string(), bpf_prog);
+        assert_eq!(deserialize_binary(&mut &bytes[..]).unwrap(), expected_res);
     }
 }
