@@ -5,6 +5,7 @@ use seccomp::{
     DeserializationError, Error, SeccompAction, SeccompCmpArgLen as ArgLen, SeccompCmpOp::Eq,
     SeccompCondition as Cond, SeccompFilter, SeccompRule,
 };
+use std::fmt;
 use std::fs::File;
 use utils::signal::sigrtmin;
 
@@ -186,21 +187,46 @@ pub fn get_empty_filters() -> BpfThreadMap {
     map
 }
 
+/// Error retrieving seccomp filters
+#[derive(fmt::Debug)]
+pub enum FilterError {
+    /// Filter deserialitaion error
+    Deserialization(DeserializationError),
+    /// Invalid thread categories
+    ThreadCategories,
+    /// Seccomp error occurred
+    Seccomp(Error),
+}
+
+impl fmt::Display for FilterError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::FilterError::*;
+
+        match *self {
+            Deserialization(ref err) => write!(f, "Filter (de)serialization failed: {}", err),
+            ThreadCategories => write!(f, "Invalid thread categories"),
+            Seccomp(ref err) => write!(f, "Seccomp error: {}", err),
+        }
+    }
+}
+
 /// Retrieve custom seccomp filters
-pub fn get_custom_filters(mut file: File) -> Result<BpfThreadMap, DeserializationError> {
-    deserialize_binary(&mut file)
+pub fn get_custom_filters(mut file: File) -> Result<BpfThreadMap, FilterError> {
+    let filters = deserialize_binary(&mut file).map_err(FilterError::Deserialization)?;
+
+    if filters.contains_key("vmm") && filters.contains_key("api") && filters.contains_key("vcpu") {
+        Ok(filters)
+    } else {
+        Err(FilterError::ThreadCategories)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{get_custom_filters, get_default_filters};
-    use utils::tempfile::TempFile;
+    use super::get_default_filters;
 
     #[test]
     fn get_filters() {
         assert!(get_default_filters().is_ok());
-
-        let file = TempFile::new().unwrap();
-        assert!(get_custom_filters(file.into_file()).is_ok());
     }
 }
