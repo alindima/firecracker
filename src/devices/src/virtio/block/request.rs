@@ -6,7 +6,7 @@
 // found in the THIRD-PARTY file.
 
 use std::convert::From;
-use std::io::{self, Seek, SeekFrom, Write};
+use std::io::{self, Seek, SeekFrom};
 use std::mem;
 use std::result;
 
@@ -26,6 +26,7 @@ pub enum ExecuteError {
     Seek(io::Error),
     Write(GuestMemoryError),
     Unsupported(u32),
+    SyncAll(io::Error),
 }
 
 impl ExecuteError {
@@ -37,6 +38,7 @@ impl ExecuteError {
             ExecuteError::Seek(_) => VIRTIO_BLK_S_IOERR,
             ExecuteError::Write(_) => VIRTIO_BLK_S_IOERR,
             ExecuteError::Unsupported(_) => VIRTIO_BLK_S_UNSUPP,
+            ExecuteError::SyncAll(_) => VIRTIO_BLK_S_IOERR,
         }
     }
 }
@@ -227,13 +229,10 @@ impl Request {
                 METRICS.block.write_bytes.add(self.data_len as usize);
                 METRICS.block.write_count.inc();
             }
-            RequestType::Flush => match diskfile.flush() {
-                Ok(_) => {
-                    METRICS.block.flush_count.inc();
-                    return Ok(0);
-                }
-                Err(e) => return Err(ExecuteError::Flush(e)),
-            },
+            RequestType::Flush => {
+                diskfile.sync_all().map_err(ExecuteError::SyncAll)?;
+                METRICS.block.flush_count.inc();
+            }
             RequestType::GetDeviceID => {
                 let disk_id = disk.image_id();
                 if (self.data_len as usize) < disk_id.len() {

@@ -5,6 +5,7 @@
 import os
 import socket
 import struct
+from subprocess import run
 
 from io import StringIO
 from nsenter import Namespace
@@ -60,6 +61,23 @@ class SSHConnection:
         else:
             utils.run_cmd(cmd)
 
+    def scp_get_file(self, remote_path, local_path):
+        """Copy a files to the VM using scp."""
+        cmd = ('scp -o StrictHostKeyChecking=no'
+               ' -o UserKnownHostsFile=/dev/null'
+               ' -i {} {}@{}:{} {}').format(
+            self.ssh_config['ssh_key_path'],
+            self.ssh_config['username'],
+            self.ssh_config['hostname'],
+            remote_path,
+            local_path
+        )
+        if self.netns_file_path:
+            with Namespace(self.netns_file_path, 'net'):
+                utils.run_cmd(cmd)
+        else:
+            utils.run_cmd(cmd)
+
     @retry(ConnectionError, delay=0.1, tries=20)
     def _init_connection(self):
         """Create an initial SSH client connection (retry until it works).
@@ -80,7 +98,7 @@ class SSHConnection:
             cp = utils.run_cmd([
                 "ssh",
                 "-q",
-                "-o", "ConnectTimeout=1",
+                "-o", "ConnectTimeout=10",
                 "-o", "StrictHostKeyChecking=no",
                 "-o", "UserKnownHostsFile=/dev/null",
                 "-i", self.ssh_config["ssh_key_path"],
