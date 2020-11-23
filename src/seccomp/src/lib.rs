@@ -62,7 +62,7 @@
 //!         SeccompAction::Trap,
 //! )
 //!     .unwrap().into_bpf(std::env::consts::ARCH).unwrap();
-//!     SeccompFilter::apply(filter).unwrap();
+//!     apply_filter(filter).unwrap();
 //! unsafe {
 //!     libc::syscall(
 //!         libc::SYS_write,
@@ -186,7 +186,7 @@
 //!         )
 //!         .unwrap();
 //!
-//!     SeccompFilter::apply(filter.into_bpf(std::env::consts::ARCH).unwrap()).unwrap();
+//!     apply_filter(filter.into_bpf(std::env::consts::ARCH).unwrap()).unwrap();
 //!
 //!     unsafe {
 //!         libc::syscall(
@@ -559,10 +559,6 @@ struct sock_fprog {
 
 /// Program made up of a sequence of BPF instructions.
 pub type BpfProgram = Vec<sock_filter>;
-/// Reference to program made up of a sequence of BPF instructions.
-pub type BpfProgramRef<'a> = &'a [sock_filter];
-/// Slice of BPF instructions.
-pub type BpfInstructionSlice = [sock_filter];
 
 impl SeccompCondition {
     /// Creates a new [`SeccompCondition`].
@@ -995,45 +991,6 @@ impl SeccompFilter {
         Ok(())
     }
 
-    /// Builds the array of filter instructions and sends them to the kernel.
-    ///
-    /// # Arguments
-    ///
-    /// * `filters` - BPF program containing the seccomp rules.
-    pub fn apply(bpf_filter: BpfProgram) -> Result<()> {
-        // If the program is empty, skip this step.
-        if bpf_filter.is_empty() {
-            return Ok(());
-        }
-
-        unsafe {
-            {
-                let rc = libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-                if rc != 0 {
-                    return Err(Error::Load(*libc::__errno_location()));
-                }
-            }
-
-            let bpf_prog = sock_fprog {
-                len: bpf_filter.len() as u16,
-                filter: bpf_filter.as_ptr(),
-            };
-            let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
-            {
-                let rc = libc::prctl(
-                    libc::PR_SET_SECCOMP,
-                    libc::SECCOMP_MODE_FILTER,
-                    bpf_prog_ptr,
-                );
-                if rc != 0 {
-                    return Err(Error::Load(*libc::__errno_location()));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Appends a chain of rules to an accumulator, updating the length of the filter.
     ///
     /// # Arguments
@@ -1084,14 +1041,6 @@ impl SeccompFilter {
         }
 
         Ok(())
-    }
-
-    /// Creates an empty `SeccompFilter` which allows everything.
-    pub fn empty() -> SeccompFilter {
-        Self {
-            rules: BTreeMap::new(),
-            default_action: SeccompAction::Allow,
-        }
     }
 
     /// Compiles the Seccomp filter into BPF statements. Receives the target_arch as input.
@@ -1196,21 +1145,6 @@ fn EXAMINE_SYSCALL() -> Vec<sock_filter> {
     )]
 }
 
-/// Possible errors that could be encountered while generating a BPF program
-#[derive(Debug)]
-pub enum SeccompError {
-    /// Error while trying to generate a BPF program.
-    SeccompFilter(Error),
-}
-
-impl Display for SeccompError {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match *self {
-            SeccompError::SeccompFilter(ref err) => write!(f, "Seccomp error: {}", err),
-        }
-    }
-}
-
 /// Binary Deserialization errors
 #[derive(Debug)]
 pub enum DeserializationError {
@@ -1226,6 +1160,48 @@ impl Display for DeserializationError {
             Bincode(ref err) => write!(f, "Bincode deserialization failed: {}", err),
         }
     }
+}
+
+/// Creates an empty `BpfProgram` which allows everything.
+pub fn empty_filter(target_arch: &str) -> Result<BpfProgram> {
+    let seccomp_filter = SeccompFilter::new(SeccompRuleMap::new(), SeccompAction::Allow)?;
+
+    seccomp_filter.into_bpf(target_arch)
+}
+
+/// Helper function for installing a BPF filter.
+pub fn apply_filter(bpf_filter: BpfProgram) -> Result<()> {
+    // If the program is empty, skip this step.
+    if bpf_filter.is_empty() {
+        return Ok(());
+    }
+
+    unsafe {
+        {
+            let rc = libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+            if rc != 0 {
+                return Err(Error::Load(*libc::__errno_location()));
+            }
+        }
+
+        let bpf_prog = sock_fprog {
+            len: bpf_filter.len() as u16,
+            filter: bpf_filter.as_ptr(),
+        };
+        let bpf_prog_ptr = &bpf_prog as *const sock_fprog;
+        {
+            let rc = libc::prctl(
+                libc::PR_SET_SECCOMP,
+                libc::SECCOMP_MODE_FILTER,
+                bpf_prog_ptr,
+            );
+            if rc != 0 {
+                return Err(Error::Load(*libc::__errno_location()));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Helper function for deserializing the BPF file into a collection of usable BPF filters.
@@ -1298,7 +1274,7 @@ mod tests {
         // the seccomp filter for the entire unit tests process.
         let errno = thread::spawn(move || {
             // Apply seccomp filter.
-            SeccompFilter::apply(filter.into_bpf(ARCH).unwrap()).unwrap();
+            apply_filter(filter.into_bpf(ARCH).unwrap()).unwrap();
 
             // Call the validation fn.
             validation_fn();
@@ -2085,7 +2061,7 @@ mod tests {
     fn test_seccomp_empty() {
         let rc1 = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
         assert_eq!(rc1, 0);
-        SeccompFilter::apply(SeccompFilter::empty().into_bpf(ARCH).unwrap()).unwrap();
+        apply_filter(empty_filter(ARCH).unwrap()).unwrap();
         let rc2 = unsafe { libc::prctl(libc::PR_GET_SECCOMP) };
         assert_eq!(rc2, 0);
     }

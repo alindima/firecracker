@@ -23,7 +23,7 @@ use crate::{
 };
 use kvm_ioctls::VcpuExit;
 use logger::{error, info, IncMetric, METRICS};
-use seccomp::{BpfProgram, SeccompFilter};
+use seccomp::BpfProgram;
 use utils::{
     eventfd::EventFd,
     signal::{register_signal_handler, sigrtmin, Killable},
@@ -253,7 +253,7 @@ impl Vcpu {
         // Load seccomp filters for this vCPU thread.
         // Execution panics if filters cannot be loaded, use --seccomp-level=0 if skipping filters
         // altogether is the desired behaviour.
-        if let Err(e) = SeccompFilter::apply(seccomp_filter) {
+        if let Err(e) = seccomp::apply_filter(seccomp_filter) {
             panic!(
                 "Failed to set the requested seccomp filters on vCPU {}: Error: {}",
                 self.kvm_vcpu.index, e
@@ -722,7 +722,7 @@ mod tests {
                 .expect("failed to configure vcpu");
         }
 
-        let seccomp_filter = seccomp::SeccompFilter::empty().into_bpf(ARCH).unwrap();
+        let seccomp_filter = seccomp::empty_filter(ARCH).unwrap();
         let vcpu_handle = vcpu
             .start_threaded(seccomp_filter)
             .expect("failed to start vcpu");

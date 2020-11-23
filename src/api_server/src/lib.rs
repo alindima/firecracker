@@ -18,7 +18,7 @@ pub use micro_http::{
 };
 use mmds::data_store;
 use mmds::data_store::Mmds;
-use seccomp::{BpfProgram, SeccompFilter};
+use seccomp::BpfProgram;
 use utils::eventfd::EventFd;
 use vmm::rpc_interface::{VmmAction, VmmActionError, VmmData};
 use vmm::vmm_config::instance_info::InstanceInfo;
@@ -118,7 +118,7 @@ impl ApiServer {
         // Load seccomp filters on the API thread.
         // Execution panics if filters cannot be loaded, use --seccomp-level=0 if skipping filters
         // altogether is the desired behaviour.
-        if let Err(e) = SeccompFilter::apply(seccomp_filter) {
+        if let Err(e) = seccomp::apply_filter(seccomp_filter) {
             panic!(
                 "Failed to set the requested seccomp filters on the API thread: Error: {:?}",
                 e
@@ -666,7 +666,7 @@ mod tests {
                     PathBuf::from(api_thread_path_to_socket),
                     Some(1),
                     Some(1),
-                    SeccompFilter::empty().into_bpf(ARCH).unwrap(),
+                    seccomp::empty_filter(ARCH).unwrap(),
                 )
                 .unwrap();
             })
