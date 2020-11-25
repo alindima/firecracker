@@ -328,19 +328,19 @@ mod tests {
             SeccompAction::Allow,
             vec![
                 SyscallObject::new(
-                    Some("SYS_read".to_string()),
+                    Some("read".to_string()),
                     None,
                     Some(SeccompAction::Log),
                     None,
                 ),
                 SyscallObject::new(
                     None,
-                    Some(vec!["SYS_close".to_string(), "SYS_brk".to_string()]),
+                    Some(vec!["close".to_string(), "brk".to_string()]),
                     Some(SeccompAction::Trap),
                     None,
                 ),
                 SyscallObject::new(
-                    Some("SYS_futex".to_string()),
+                    Some("futex".to_string()),
                     None,
                     Some(SeccompAction::Log),
                     Some(vec![
@@ -349,7 +349,7 @@ mod tests {
                     ]),
                 ),
                 SyscallObject::new(
-                    Some("SYS_futex".to_string()),
+                    Some("futex".to_string()),
                     None,
                     None,
                     Some(vec![
@@ -358,13 +358,13 @@ mod tests {
                     ]),
                 ),
                 SyscallObject::new(
-                    Some("SYS_futex".to_string()),
+                    Some("futex".to_string()),
                     None,
                     None,
                     Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
                 ),
                 SyscallObject::new(
-                    Some("SYS_ioctl".to_string()),
+                    Some("ioctl".to_string()),
                     None,
                     None,
                     Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
@@ -376,19 +376,19 @@ mod tests {
         let seccomp_filter = SeccompFilter::new(
             vec![
                 match_syscall(
-                    compiler.syscall_table.get_syscall_nr("SYS_read").unwrap(),
+                    compiler.syscall_table.get_syscall_nr("read").unwrap(),
                     SeccompAction::Log,
                 ),
                 match_syscall(
-                    compiler.syscall_table.get_syscall_nr("SYS_close").unwrap(),
+                    compiler.syscall_table.get_syscall_nr("close").unwrap(),
                     SeccompAction::Trap,
                 ),
                 match_syscall(
-                    compiler.syscall_table.get_syscall_nr("SYS_brk").unwrap(),
+                    compiler.syscall_table.get_syscall_nr("brk").unwrap(),
                     SeccompAction::Trap,
                 ),
                 match_syscall_if(
-                    compiler.syscall_table.get_syscall_nr("SYS_futex").unwrap(),
+                    compiler.syscall_table.get_syscall_nr("futex").unwrap(),
                     vec![
                         SeccompRule::new(
                             vec![
@@ -411,7 +411,7 @@ mod tests {
                     ],
                 ),
                 match_syscall_if(
-                    compiler.syscall_table.get_syscall_nr("SYS_ioctl").unwrap(),
+                    compiler.syscall_table.get_syscall_nr("ioctl").unwrap(),
                     vec![SeccompRule::new(
                         vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()],
                         SeccompAction::Allow,
@@ -441,8 +441,8 @@ mod tests {
                 SeccompAction::Trap,
                 SeccompAction::Allow,
                 vec![SyscallObject::new(
-                    Some("SYS_read".to_string()),
-                    Some(vec!["SYS_read".to_string()]),
+                    Some("read".to_string()),
+                    Some(vec!["read".to_string()]),
                     None,
                     None,
                 )],
@@ -477,7 +477,7 @@ mod tests {
                 SeccompAction::Allow,
                 vec![SyscallObject::new(
                     None,
-                    Some(vec!["SYS_close".to_string(), "SYS_read".to_string()]),
+                    Some(vec!["close".to_string(), "read".to_string()]),
                     None,
                     Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),
                 )],
@@ -487,8 +487,8 @@ mod tests {
         assert_eq!(
             compiler.compile_blob(syscalls_with_conditions_filters),
             Err(Error::SyscallsWithArgs(vec![
-                "SYS_close".to_string(),
-                "SYS_read".to_string()
+                "close".to_string(),
+                "read".to_string()
             ]))
         );
 
@@ -523,15 +523,15 @@ mod tests {
                 SeccompAction::Trap,
                 SeccompAction::Allow,
                 vec![
-                    SyscallObject::new(Some("SYS_read".to_string()), None, None, None),
+                    SyscallObject::new(Some("read".to_string()), None, None, None),
                     SyscallObject::new(
                         None,
-                        Some(vec!["SYS_close".to_string(), "SYS_brk".to_string()]),
+                        Some(vec!["close".to_string(), "brk".to_string()]),
                         Some(SeccompAction::Trap),
                         None,
                     ),
                     SyscallObject::new(
-                        Some("SYS_futex".to_string()),
+                        Some("futex".to_string()),
                         None,
                         None,
                         Some(vec![
@@ -540,7 +540,7 @@ mod tests {
                         ]),
                     ),
                     SyscallObject::new(
-                        Some("SYS_futex".to_string()),
+                        Some("futex".to_string()),
                         None,
                         None,
                         Some(vec![
@@ -578,22 +578,22 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::SyscallName("SYS_asdsad".to_string(), TargetArch::x86_64)
+                Error::SyscallName("asdsad".to_string(), TargetArch::x86_64)
             ),
             format!(
                 "Invalid syscall name: {} for given arch: {}.",
-                "SYS_asdsad", "x86_64"
+                "asdsad", "x86_64"
             )
         );
         assert_eq!(
             format!(
                 "{}",
-                Error::SyscallsWithArgs(vec!["SYS_close".to_string(), "SYS_open".to_string()])
+                Error::SyscallsWithArgs(vec!["close".to_string(), "open".to_string()])
             ),
             format!(
                 "The object with the following `syscalls`: {:?} cannot have argument\
                  conditions. Use the `syscall` property instead or remove the `args` property.",
-                vec!["SYS_close".to_string(), "SYS_open".to_string()]
+                vec!["close".to_string(), "open".to_string()]
             )
         );
     }

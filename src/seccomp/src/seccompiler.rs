@@ -199,18 +199,18 @@ mod tests {
                 "filter_action": "allow",
                 "filter": [
                     {
-                        "syscall": "SYS_open",
+                        "syscall": "open",
                         "action": "log"
                     },
                     {
                         "syscalls": [
-                            "SYS_close",
-                            "SYS_stat"
+                            "close",
+                            "stat"
                         ],
                         "action": "trap"
                     },
                     {
-                        "syscall": "SYS_futex",
+                        "syscall": "futex",
                         "args": [
                             {
                                 "arg_index": 2,
@@ -227,7 +227,7 @@ mod tests {
                         ]
                     },
                     {
-                        "syscall": "SYS_futex",
+                        "syscall": "futex",
                         "action": "log",
                         "args": [
                             {
@@ -245,7 +245,7 @@ mod tests {
                         ]
                     },
                     {
-                        "syscall": "SYS_futex",
+                        "syscall": "futex",
                         "args": [
                             {
                                 "arg_index": 3,
@@ -256,7 +256,7 @@ mod tests {
                         ]
                     },
                     {
-                        "syscall": "SYS_ioctl",
+                        "syscall": "ioctl",
                         "args": [
                             {
                                 "arg_index": 3,
@@ -275,7 +275,7 @@ mod tests {
                 "filter_action": "allow",
                 "filter": [
                     {
-                        "syscall": "SYS_ioctl",
+                        "syscall": "ioctl",
                         "args": [
                             {
                                 "arg_index": 3,
@@ -534,7 +534,7 @@ mod tests {
                     "filter_action": "allow",
                     "filter": [
                         {
-                            "syscall": "SYS_ioctl",
+                            "syscall": "ioctl",
                             "args": [
                                 {
                                     "arg_index": 3,
@@ -560,7 +560,7 @@ mod tests {
                     "filter_action": "allow",
                     "filter": [
                         {
-                            "syscall": "SYS_ioctl",
+                            "syscall": "ioctl",
                             "args": [
                                 {
                                     "arg_index": 3,
@@ -586,7 +586,7 @@ mod tests {
                     "filter_action": "allow",
                     "filter": [
                         {
-                            "syscall": "SYS_ioctl",
+                            "syscall": "ioctl",
                             "args": [
                                 {
                                     "arg_index": 3,
@@ -633,19 +633,19 @@ mod tests {
                     SeccompAction::Allow,
                     vec![
                         SyscallObject::new(
-                            Some("SYS_open".to_string()),
+                            Some("open".to_string()),
                             None,
                             Some(SeccompAction::Log),
                             None,
                         ),
                         SyscallObject::new(
                             None,
-                            Some(vec!["SYS_close".to_string(), "SYS_stat".to_string()]),
+                            Some(vec!["close".to_string(), "stat".to_string()]),
                             Some(SeccompAction::Trap),
                             None,
                         ),
                         SyscallObject::new(
-                            Some("SYS_futex".to_string()),
+                            Some("futex".to_string()),
                             None,
                             None,
                             Some(vec![
@@ -654,7 +654,7 @@ mod tests {
                             ]),
                         ),
                         SyscallObject::new(
-                            Some("SYS_futex".to_string()),
+                            Some("futex".to_string()),
                             None,
                             Some(SeccompAction::Log),
                             Some(vec![
@@ -663,13 +663,13 @@ mod tests {
                             ]),
                         ),
                         SyscallObject::new(
-                            Some("SYS_futex".to_string()),
+                            Some("futex".to_string()),
                             None,
                             None,
                             Some(vec![Cond::new(3, QWORD, Ge, 65).unwrap()]),
                         ),
                         SyscallObject::new(
-                            Some("SYS_ioctl".to_string()),
+                            Some("ioctl".to_string()),
                             None,
                             None,
                             Some(vec![Cond::new(3, DWORD, MaskedEq(100), 65).unwrap()]),
@@ -684,7 +684,7 @@ mod tests {
                     SeccompAction::Trap,
                     SeccompAction::Allow,
                     vec![SyscallObject::new(
-                        Some("SYS_ioctl".to_string()),
+                        Some("ioctl".to_string()),
                         None,
                         None,
                         Some(vec![Cond::new(3, DWORD, Eq, 65).unwrap()]),

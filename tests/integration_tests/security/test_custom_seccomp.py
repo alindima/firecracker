@@ -92,7 +92,7 @@ def test_working_filter(test_microvm_with_api):
             "filter_action": "kill",
             "filter": [
                 {
-                    "syscalls": ["SYS_clone", "SYS_execve"]
+                    "syscalls": ["clone", "execve"]
                 }
             ]
         },
@@ -101,7 +101,7 @@ def test_working_filter(test_microvm_with_api):
             "filter_action": "kill",
             "filter": [
                 {
-                    "syscalls": ["SYS_clone", "SYS_execve"]
+                    "syscalls": ["clone", "execve"]
                 }
             ]
         },
@@ -110,7 +110,7 @@ def test_working_filter(test_microvm_with_api):
             "filter_action": "kill",
             "filter": [
                 {
-                    "syscalls": ["SYS_clone", "SYS_execve"],
+                    "syscalls": ["clone", "execve"],
                     "comment": "sample comment"
                 }
             ]
@@ -146,7 +146,7 @@ def test_failing_filter(test_microvm_with_ssh, vm_config_file):
             "filter_action": "allow",
             "filter": [
                 {
-                    "syscalls": ["SYS_read"]
+                    "syscalls": ["read"]
                 }
             ]
         },
@@ -155,7 +155,7 @@ def test_failing_filter(test_microvm_with_ssh, vm_config_file):
             "filter_action": "allow",
             "filter": [
                 {
-                    "syscalls": ["SYS_read"]
+                    "syscalls": ["read"]
                 }
             ]
         },
@@ -164,7 +164,7 @@ def test_failing_filter(test_microvm_with_ssh, vm_config_file):
             "filter_action": "allow",
             "filter": [
                 {
-                    "syscalls": ["SYS_read"]
+                    "syscalls": ["read"]
                 }
             ]
         }

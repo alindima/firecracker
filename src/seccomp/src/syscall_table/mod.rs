@@ -30,7 +30,6 @@ impl SyscallTable {
     }
 
     /// Returns the arch-specific syscall number based on the given name.
-    /// Adheres to the "SYS_*" notation.
     pub fn get_syscall_nr(&self, sys_name: &str) -> Option<i64> {
         self.map.get(sys_name).copied()
     }
@@ -55,8 +54,8 @@ mod tests {
         let instance_x86_64 = SyscallTable::new(TargetArch::x86_64);
         let instance_aarch64 = SyscallTable::new(TargetArch::aarch64);
 
-        assert_eq!(instance_x86_64.get_syscall_nr("SYS_close").unwrap(), 3);
-        assert_eq!(instance_aarch64.get_syscall_nr("SYS_close").unwrap(), 57);
+        assert_eq!(instance_x86_64.get_syscall_nr("close").unwrap(), 3);
+        assert_eq!(instance_aarch64.get_syscall_nr("close").unwrap(), 57);
 
         // invalid syscall name
         assert!(instance_x86_64.get_syscall_nr("nosyscall").is_none());

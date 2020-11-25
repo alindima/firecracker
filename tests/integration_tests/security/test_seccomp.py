@@ -13,37 +13,37 @@ def _get_basic_syscall_list():
     """Return the list of syscalls that the demo jailer needs."""
     if platform.machine() == "x86_64":
         return """[
-            "SYS_rt_sigprocmask",
-            "SYS_rt_sigaction",
-            "SYS_execve",
-            "SYS_mmap",
-            "SYS_arch_prctl",
-            "SYS_set_tid_address",
-            "SYS_readlink",
-            "SYS_open",
-            "SYS_read",
-            "SYS_close",
-            "SYS_brk",
-            "SYS_sched_getaffinity",
-            "SYS_sigaltstack",
-            "SYS_munmap",
-            "SYS_exit_group"
+            "rt_sigprocmask",
+            "rt_sigaction",
+            "execve",
+            "mmap",
+            "arch_prctl",
+            "set_tid_address",
+            "readlink",
+            "open",
+            "read",
+            "close",
+            "brk",
+            "sched_getaffinity",
+            "sigaltstack",
+            "munmap",
+            "exit_group"
         ]"""
 
     # platform.machine() == "aarch64"
     return """[
-        "SYS_rt_sigprocmask",
-        "SYS_rt_sigaction",
-        "SYS_execve",
-        "SYS_mmap",
-        "SYS_set_tid_address",
-        "SYS_read",
-        "SYS_close",
-        "SYS_brk",
-        "SYS_sched_getaffinity",
-        "SYS_sigaltstack",
-        "SYS_munmap",
-        "SYS_exit_group"
+        "rt_sigprocmask",
+        "rt_sigaction",
+        "execve",
+        "mmap",
+        "set_tid_address",
+        "read",
+        "close",
+        "brk",
+        "sched_getaffinity",
+        "sigaltstack",
+        "munmap",
+        "exit_group"
     ]"""
 
 
@@ -131,7 +131,7 @@ def test_advanced_seccomp(bin_seccomp_paths):
                     "syscalls": {}
                 }},
                 {{
-                    "syscall": "SYS_write",
+                    "syscall": "write",
                     "args": [
                         {{
                             "arg_index": 0,
