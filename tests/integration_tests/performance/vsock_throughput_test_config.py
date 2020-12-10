@@ -32,7 +32,7 @@ CONFIG = {
         {
             "name": "tcp",
             "omit": 3,
-            "payload_length": ["96", "1024K",  None],
+            "payload_length": ["1024K",  None],
         }
     ],
     "hosts": {
@@ -41,7 +41,7 @@ CONFIG = {
                 "cpus": [
                     {
                         # m5zn
-                        "model": "Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz"
+                        "model": "Intel(R) Xeon(R) Platinum 8252C CPU @ 3.80GHz",
                     },
                     {
                         # m5d
@@ -49,7 +49,7 @@ CONFIG = {
                     },
                     {
                         # m5d
-                        "model": "Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz"
+                        "model": "Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz",
                     }
                 ]
             }
