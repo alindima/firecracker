@@ -35,7 +35,7 @@ CONFIG = {
             "name": "tcp",
             "omit": 3,  # seconds
             # None == Default (128K)
-            "payload_length": ["1024", "1024K", None],
+            "payload_length": ["1024K", None, "1024"],
         }
     ],
     "hosts": {

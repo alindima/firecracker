@@ -43,40 +43,40 @@ def measurements_vsock():
 def stats_vsock(host_cpu_model: str, iperf3_id: str, env_id: str):
     """Define statistics and pass criteria for VSOCK measurements."""
     cpus = CONFIG["hosts"]["instances"]["m5d.metal"]["cpus"]
-    for cpu in cpus:
-        if cpu["model"] == host_cpu_model:
-            baseline_bw = cpu["baseline_bw"][env_id][iperf3_id]
-            delta_throughput = baseline_bw[DELTA_PERCENTAGE_TAG] * \
-                baseline_bw[TARGET_TAG] / 100
-            baseline_cpu_util = cpu["baseline_cpu_utilization"][env_id]
-            baseline_cpu_host = \
-                baseline_cpu_util[CPU_UTILIZATION_VMM_TAG][iperf3_id]
-            baseline_host_target = baseline_cpu_host[TARGET_TAG]
-            baseline_host_delta = \
-                baseline_cpu_host[DELTA_PERCENTAGE_TAG] * \
-                baseline_host_target / 100
-            baseline_cpu_guest = \
-                baseline_cpu_util[CPU_UTILIZATION_VCPUS_TOTAL_TAG][iperf3_id]
-            baseline_guest_target = baseline_cpu_guest[TARGET_TAG]
-            baseline_guest_delta = \
-                baseline_guest_target * baseline_guest_target / 100
+    # for cpu in cpus:
+    #     if cpu["model"] == host_cpu_model:
+    #         baseline_bw = cpu["baseline_bw"][env_id][iperf3_id]
+    #         delta_throughput = baseline_bw[DELTA_PERCENTAGE_TAG] * \
+    #             baseline_bw[TARGET_TAG] / 100
+    #         baseline_cpu_util = cpu["baseline_cpu_utilization"][env_id]
+    #         baseline_cpu_host = \
+    #             baseline_cpu_util[CPU_UTILIZATION_VMM_TAG][iperf3_id]
+    #         baseline_host_target = baseline_cpu_host[TARGET_TAG]
+    #         baseline_host_delta = \
+    #             baseline_cpu_host[DELTA_PERCENTAGE_TAG] * \
+    #             baseline_host_target / 100
+    #         baseline_cpu_guest = \
+    #             baseline_cpu_util[CPU_UTILIZATION_VCPUS_TOTAL_TAG][iperf3_id]
+    #         baseline_guest_target = baseline_cpu_guest[TARGET_TAG]
+    #         baseline_guest_delta = \
+    #             baseline_guest_target * baseline_guest_target / 100
 
-            return \
-                [types.StatisticDef(THROUGHPUT_TOTAL, THROUGHPUT, function.Sum,
-                                    criteria.EqualWith(baseline_bw[TARGET_TAG],
-                                                       delta_throughput)),
-                 types.StatisticDef(DURATION_TOTAL, DURATION, function.Avg),
-                 types.StatisticDef(CPU_UTILIZATION_VMM_TAG,
-                                    CPU_UTILIZATION_HOST,
-                                    function.Identity,
-                                    criteria.EqualWith(baseline_host_target,
-                                                       baseline_host_delta)),
-                 types.StatisticDef(CPU_UTILIZATION_VCPUS_TOTAL_TAG,
-                                    CPU_UTILIZATION_GUEST,
-                                    function.Identity,
-                                    criteria.EqualWith(baseline_guest_target,
-                                                       baseline_guest_delta))
-                 ]
+    #         return \
+    #             [types.StatisticDef(THROUGHPUT_TOTAL, THROUGHPUT, function.Sum,
+    #                                 criteria.EqualWith(baseline_bw[TARGET_TAG],
+    #                                                    delta_throughput)),
+    #              types.StatisticDef(DURATION_TOTAL, DURATION, function.Avg),
+    #              types.StatisticDef(CPU_UTILIZATION_VMM_TAG,
+    #                                 CPU_UTILIZATION_HOST,
+    #                                 function.Identity,
+    #                                 criteria.EqualWith(baseline_host_target,
+    #                                                    baseline_host_delta)),
+    #              types.StatisticDef(CPU_UTILIZATION_VCPUS_TOTAL_TAG,
+    #                                 CPU_UTILIZATION_GUEST,
+    #                                 function.Identity,
+    #                                 criteria.EqualWith(baseline_guest_target,
+    #                                                    baseline_guest_delta))
+    #              ]
 
     # If there are no baselines for the host CPU model, do not define any
     # criteria. Useful for gathering baselines on new CPUs.
