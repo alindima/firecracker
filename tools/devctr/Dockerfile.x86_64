@@ -49,6 +49,12 @@ RUN apt-get update \
         screen \
         tzdata \
         npm \
+        wget \
+        unzip \
+        libnuma-dev \
+        libhugetlbfs0 \
+        # ntp \
+        # cpuset \
     && python3 -m pip install \
         setuptools \
         wheel \
@@ -98,6 +104,15 @@ RUN mkdir "$TMP_BUILD_DIR" && cd "$TMP_BUILD_DIR" \
     && cp src/iperf3 /usr/local/bin/iperf3-vsock \
     && cd / \
     && rm -rf "$TMP_BUILD_DIR"
+
+# Install X-mem
+RUN mkdir "$TMP_BUILD_DIR" && cd "$TMP_BUILD_DIR" \
+    && wget https://nanocad-lab.github.io/X-Mem/releases/zip/xmem_v2.4.2.zip  \
+    && unzip xmem_v2.4.2.zip \
+    && cp xmem_v2.4.2/xmem-linux-x64 /usr/local/bin/xmem \
+    && cd / \
+    && rm -rf "$TMP_BUILD_DIR"
+
 
 # Add the tini init binary.
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION_TAG}/tini-static-amd64 /sbin/tini

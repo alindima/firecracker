@@ -73,7 +73,7 @@
 # Development container image (name:tag)
 # This should be updated whenever we upgrade the development container.
 # (Yet another step on our way to reproducible builds.)
-DEVCTR_IMAGE="fcuvm/dev:v25"
+DEVCTR_IMAGE="fcuvm/dev:latest"
 
 # Naming things is hard
 MY_NAME="Firecracker $(basename "$0")"
@@ -687,6 +687,8 @@ cmd_shell() {
             --ulimit nofile=4096:4096 \
             --security-opt seccomp=unconfined \
             --workdir "$CTR_FC_ROOT_DIR" \
+            --cpuset-cpus="0-15" \
+            --cpuset-mems="0" \
             -- \
             bash
         ret=$?
