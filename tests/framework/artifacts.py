@@ -12,6 +12,7 @@ from shutil import copyfile
 import boto3
 import botocore.client
 from host_tools.snapshot_helper import merge_memory_bitmaps
+from framework.utils import compare_release_versions
 
 
 ARTIFACTS_LOCAL_ROOT = "/tmp/ci-artifacts"
@@ -305,7 +306,8 @@ class ArtifactCollection:
                          artifact_ext,
                          artifact_type,
                          artifact_class,
-                         keyword=None):
+                         keyword=None,
+                         older_than=None):
         artifacts = []
         prefix = ArtifactCollection.ARTIFACTS_ROOT + artifact_dir
         files = self.bucket.objects.filter(Prefix=prefix)
@@ -316,9 +318,22 @@ class ArtifactCollection:
                 # Filter by userprovided keyword if any.
                 and (keyword is None or keyword in file.key)
             ):
-                artifacts.append(artifact_class(self.bucket,
-                                                file.key,
-                                                artifact_type=artifact_type))
+                if older_than is not None and artifact_type == ArtifactType.FC:
+                    version = os.path.basename(
+                        file.key).replace(artifact_ext, '')[1:]
+
+                    if compare_release_versions(version, older_than) < 0:
+                        artifacts.append(
+                            artifact_class(self.bucket,
+                                           file.key,
+                                           artifact_type=artifact_type)
+                        )
+                else:
+                    artifacts.append(
+                        artifact_class(self.bucket,
+                                       file.key,
+                                       artifact_type=artifact_type)
+                    )
         return artifacts
 
     def snapshots(self, keyword=None):
@@ -347,7 +362,7 @@ class ArtifactCollection:
             # Filter out the snapshot artifacts root folder.
             # Select only files with specified keyword.
             if (key[-1] == "/" and key != prefix and
-               (keyword is None or keyword in snapshot_dir.key)):
+                    (keyword is None or keyword in snapshot_dir.key)):
                 artifact_type = ArtifactType.SNAPSHOT
                 artifacts.append(SnapshotArtifact(self.bucket,
                                                   key,
@@ -365,14 +380,15 @@ class ArtifactCollection:
             keyword=keyword
         )
 
-    def firecrackers(self, keyword=None):
+    def firecrackers(self, keyword=None, older_than=None):
         """Return fc/jailer artifacts for the current arch."""
         return self._fetch_artifacts(
             ArtifactCollection.ARTIFACTS_BINARIES,
             ArtifactCollection.FC_EXTENSION,
             ArtifactType.FC,
             FirecrackerArtifact,
-            keyword=keyword
+            keyword=keyword,
+            older_than=older_than
         )
 
     def kernels(self, keyword=None):
