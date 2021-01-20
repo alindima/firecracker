@@ -28,3 +28,5 @@ DEFAULT_TEST_IMAGES_S3_BUCKET = 'spec.ccfc.min'
 ENV_TEST_IMAGES_S3_BUCKET = 'TEST_MICROVM_IMAGES_S3_BUCKET'
 """Default test session root directory path"""
 DEFAULT_TEST_SESSION_ROOT_PATH = "/srv"
+"""Absolute path to the performance test results folder"""
+PERF_TEST_RESULTS_DIR = Path(FC_WORKSPACE_DIR).joinpath("test_results")

@@ -14,6 +14,7 @@ import time
 from collections import namedtuple, defaultdict
 import psutil
 from retry import retry
+from framework import defs
 
 CommandReturn = namedtuple("CommandReturn", "returncode stdout stderr")
 CMDLOG = logging.getLogger("commands")
@@ -515,3 +516,26 @@ def compare_versions(first, second):
         return first[1] - second[1]
 
     return first[0] - second[0]
+
+
+class ResultsFileDumper:
+    """Class responsible with outputting test results to files."""
+
+    def __init__(self, test_name: str):
+        """Initialize the instance."""
+        self._root_path = defs.PERF_TEST_RESULTS_DIR
+        self._path = os.path.join(self._root_path, test_name)
+
+        # Create the root directory, if it doesn't exist.
+        os.makedirs(self._root_path, exist_ok=True)
+
+    def writeln(self, data: str, append=True):
+        """Write the `data` string to the output file, appending a newline."""
+        if not append:
+            flags = "w"
+        else:
+            flags = "a"
+
+        with open(self._path, flags) as file:
+            file.write(data)
+            file.write("\n")
