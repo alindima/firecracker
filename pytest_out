@@ -1,0 +1,190 @@
+[Firecracker devtool] 2020-12-23 14:35:18 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 8.785920291588877}, 'HostThroughput': {'unit': 'MB/s', 'host': 6979.69}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 6366.46}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 18.551309155960315}, 'HostThroughput': {'unit': 'MB/s', 'host': 15372.5}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12520.7}}}, 'custom': {}}
+
+======================== 1 passed in 159.73s (0:02:39) =========================
+[Firecracker devtool] 2020-12-23 14:38:01 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 22.500134458443853}, 'HostThroughput': {'unit': 'MB/s', 'host': 7065.38}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5475.66}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 18.196012645977163}, 'HostThroughput': {'unit': 'MB/s', 'host': 15499.0}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12678.8}}}, 'custom': {}}
+
+======================== 1 passed in 160.08s (0:02:40) =========================
+[Firecracker devtool] 2020-12-23 14:40:44 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 21.369232183600644}, 'HostThroughput': {'unit': 'MB/s', 'host': 7179.06}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5644.95}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 20.897831815150745}, 'HostThroughput': {'unit': 'MB/s', 'host': 15446.1}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12218.2}}}, 'custom': {}}
+
+======================== 1 passed in 158.02s (0:02:38) =========================
+[Firecracker devtool] 2020-12-23 14:43:26 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 12.487026015935518}, 'HostThroughput': {'unit': 'MB/s', 'host': 7062.21}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 6180.35}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 18.52187514685249}, 'HostThroughput': {'unit': 'MB/s', 'host': 14895.9}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12136.9}}}, 'custom': {}}
+
+======================== 1 passed in 161.04s (0:02:41) =========================
+[Firecracker devtool] 2020-12-23 14:46:10 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 15.701192703663452}, 'HostThroughput': {'unit': 'MB/s', 'host': 6937.18}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5847.96}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 18.870809924638575}, 'HostThroughput': {'unit': 'MB/s', 'host': 15432.3}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12520.1}}}, 'custom': {}}
+
+======================== 1 passed in 159.67s (0:02:39) =========================
+[Firecracker devtool] 2020-12-23 14:48:53 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 12.400476369526643}, 'HostThroughput': {'unit': 'MB/s', 'host': 6994.57}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 6127.21}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 28.520997749306474}, 'HostThroughput': {'unit': 'MB/s', 'host': 17194.7}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12290.6}}}, 'custom': {}}
+
+======================== 1 passed in 160.23s (0:02:40) =========================
+[Firecracker devtool] 2020-12-23 14:51:37 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 25.091146013834788}, 'HostThroughput': {'unit': 'MB/s', 'host': 7213.7}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5403.7}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 22.495715252436458}, 'HostThroughput': {'unit': 'MB/s', 'host': 15811.9}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12254.9}}}, 'custom': {}}
+
+======================== 1 passed in 157.68s (0:02:37) =========================
+[Firecracker devtool] 2020-12-23 14:54:18 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 25.30112432739389}, 'HostThroughput': {'unit': 'MB/s', 'host': 7184.74}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5366.92}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 17.147154172654652}, 'HostThroughput': {'unit': 'MB/s', 'host': 14960.5}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 12395.2}}}, 'custom': {}}
+
+======================== 1 passed in 158.67s (0:02:38) =========================
+[Firecracker devtool] 2020-12-23 14:57:00 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 19.91128064460826}, 'HostThroughput': {'unit': 'MB/s', 'host': 6999.6}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 5605.89}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 20.014193513831977}, 'HostThroughput': {'unit': 'MB/s', 'host': 14936.4}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 11947.0}}}, 'custom': {}}
+
+======================== 1 passed in 160.65s (0:02:40) =========================
+[Firecracker devtool] 2020-12-23 14:59:43 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 1 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.1, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 1 item
+  PASSED    integration_tests/performance/test_memory.py::test_memory_performance
+Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'2vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 11.95465400745573}, 'HostThroughput': {'unit': 'MB/s', 'host': 6867.2}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 6046.25}}}, 'custom': {}}
+{'name': 'memory_throughput', 'iterations': 1, 'results': {'3vcpu_11gb.json/vmlinux-4.14.bin/ubuntu-18.04.ext4/reads-c64-sequential_access': {'ThroughputDifference': {'unit': '%', 'overhead': 22.540081526256646}, 'HostThroughput': {'unit': 'MB/s', 'host': 15038.1}, 'GuestThroughput': {'unit': 'MB/s', 'guest': 11648.5}}}, 'custom': {}}
+
+======================== 1 passed in 159.25s (0:02:39) =========================

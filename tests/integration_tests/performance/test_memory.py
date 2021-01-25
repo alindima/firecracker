@@ -125,7 +125,7 @@ def consume_xmem_output(cons, result):
 
 
 @ pytest.mark.nonci
-@ pytest.mark.timeout(600)
+@ pytest.mark.timeout(6000)
 def test_memory_performance(bin_cloner_path):
     """Test memory performance driver for multiple artifacts."""
     logger = logging.getLogger("memory")
@@ -133,7 +133,8 @@ def test_memory_performance(bin_cloner_path):
     microvm_artifacts = ArtifactSet(artifacts.microvms(keyword="2vcpu_11gb"))
     microvm_artifacts.insert(artifacts.microvms(keyword="3vcpu_11gb"))
     kernel_artifacts = ArtifactSet(
-        artifacts.kernels())
+        artifacts.kernels(keyword="4.14"))
+
     disk_artifacts = ArtifactSet(artifacts.disks(keyword="ubuntu"))
 
     # Create a test context and add builder, logger, network.
@@ -204,7 +205,7 @@ def memory_workload(context):
     assert num_threads > 0
     modes = ["--reads", "--writes"]
     chunks = ["64"]
-    access_patterns = ["--random_access", "--sequential_access"]
+    access_patterns = ["--random_access"]
 
     # chunks = ["64"]
     # modes = ["--reads"]
