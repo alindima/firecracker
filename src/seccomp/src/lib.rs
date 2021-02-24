@@ -72,8 +72,8 @@ impl Display for InstallationError {
 /// Has an optional `bytes_limit` that is passed to bincode to constrain the maximum amount of memory
 /// that we can allocate while performing the deserialization.
 /// It's recommended that the integrator of the library uses this to prevent memory allocations DOS-es.
-pub fn deserialize_binary(
-    reader: &mut dyn Read,
+pub fn deserialize_binary<R: Read>(
+    reader: R,
     bytes_limit: Option<u64>,
 ) -> std::result::Result<BpfThreadMap, DeserializationError> {
     let result = match bytes_limit {
@@ -83,9 +83,9 @@ pub fn deserialize_binary(
             .with_fixint_encoding()
             .allow_trailing_bytes()
             .with_limit(limit)
-            .deserialize_from::<&mut dyn Read, BpfThreadMap>(reader),
+            .deserialize_from::<R, BpfThreadMap>(reader),
         // No limit is the default.
-        None => bincode::deserialize_from::<&mut dyn Read, BpfThreadMap>(reader),
+        None => bincode::deserialize_from::<R, BpfThreadMap>(reader),
     };
 
     Ok(result
