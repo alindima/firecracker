@@ -3,7 +3,10 @@
 use seccomp::{deserialize_binary, BpfThreadMap, DeserializationError, InstallationError};
 use std::fmt;
 use std::fs::File;
-use std::io::BufReader;
+// use std::io::BufReader;
+// use std::io::Seek;
+use std::convert::TryInto;
+use std::os::unix::io::AsRawFd;
 
 const THREAD_CATEGORIES: [&str; 3] = ["vmm", "api", "vcpu"];
 
@@ -93,10 +96,42 @@ pub fn get_empty_filters() -> BpfThreadMap {
 
 /// Retrieve custom seccomp filters.
 pub fn get_custom_filters(file: File) -> Result<BpfThreadMap, FilterError> {
-    let mut reader = BufReader::new(file);
-    let map = deserialize_binary(&mut reader, DESERIALIZATION_BYTES_LIMIT)
-        .map_err(FilterError::Deserialization)?;
+    // let map = deserialize_binary(BufReader::new(file), DESERIALIZATION_BYTES_LIMIT)
+    //     .map_err(FilterError::Deserialization)?;
+    // filter_thread_categories(map)
+
+    let len = file.metadata().unwrap().len();
+    let rc = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            len.try_into().unwrap(),
+            libc::PROT_READ,
+            libc::MAP_POPULATE | libc::MAP_PRIVATE,
+            file.as_raw_fd(),
+            0,
+        )
+    };
+
+    assert!(rc as usize > 0);
+
+    unsafe {
+        std::ptr::slice_from_raw_parts(rc as *const u8, len.try_into().unwrap())
+            .as_ref()
+            .unwrap()
+    };
+
+    let map = deserialize_binary(
+        unsafe {
+            std::ptr::slice_from_raw_parts(rc as *const u8, len.try_into().unwrap())
+                .as_ref()
+                .unwrap()
+        },
+        DESERIALIZATION_BYTES_LIMIT,
+    )
+    .map_err(FilterError::Deserialization)?;
     filter_thread_categories(map)
+
+    // Ok(get_empty_filters())
 }
 
 #[cfg(test)]
