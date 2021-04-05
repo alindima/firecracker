@@ -332,10 +332,10 @@ impl VsockMuxer {
     }
 
     /// Handle/dispatch an epoll event to its listener.
-    fn handle_event(&mut self, fd: RawFd, evset: EventSet) {
+    fn handle_event(&mut self, fd: RawFd, evset2: EventSet) {
         debug!(
             "vsock: muxer processing event: fd={}, evset={:?}",
-            fd, evset
+            fd, evset2
         );
 
         match self.listener_map.get_mut(&fd) {
@@ -344,6 +344,8 @@ impl VsockMuxer {
             Some(EpollListener::Connection { key, evset }) => {
                 let key_copy = *key;
                 let evset_copy = *evset;
+                debug!("it's the connection {:?}, evset: {:?}", key_copy, evset2);
+
                 // The handling of this event will most probably mutate the state of the
                 // receiving conection. We'll need to check for new pending RX, event set
                 // mutation, and all that, so we're wrapping the event delivery inside those
@@ -355,6 +357,7 @@ impl VsockMuxer {
 
             // A new host-initiated connection is ready to be accepted.
             Some(EpollListener::HostSock) => {
+                // debug!("it's the hostsock {:?}, evset: {:?}", key_copy, evset);
                 if self.conn_map.len() == defs::MAX_CONNECTIONS {
                     // If we're already maxed-out on connections, we'll just accept and
                     // immediately discard this potentially new one.
@@ -411,7 +414,7 @@ impl VsockMuxer {
             }
 
             _ => {
-                info!("vsock: unexpected event: fd={:?}, evset={:?}", fd, evset);
+                info!("vsock: unexpected event: fd={:?}, evset={:?}", fd, evset2);
                 METRICS.vsock.muxer_event_fails.inc();
             }
         }
@@ -590,6 +593,14 @@ impl VsockMuxer {
     /// RST packet will be scheduled for delivery to the guest.
     fn handle_peer_request_pkt(&mut self, pkt: &VsockPacket) {
         let port_path = format!("{}_{}", self.host_sock_path, pkt.dst_port());
+
+        debug!(
+            "Adding conn: {:?}",
+            ConnMapKey {
+                local_port: pkt.dst_port(),
+                peer_port: pkt.src_port(),
+            }
+        );
 
         UnixStream::connect(port_path)
             .and_then(|stream| stream.set_nonblocking(true).map(|_| stream))

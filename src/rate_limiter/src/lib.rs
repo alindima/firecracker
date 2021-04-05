@@ -185,7 +185,7 @@ impl TokenBucket {
             // This operation requests a bandwidth higher than the bucket size
             if tokens > self.size {
                 error!(
-                    "Consumed {} tokens from bucket of size {}",
+                    "Overconsumption: Consumed {} tokens from bucket of size {}",
                     tokens, self.size
                 );
                 // Empty the bucket and report an overconsumption of
@@ -194,11 +194,16 @@ impl TokenBucket {
                 self.budget = 0;
                 return BucketReduction::OverConsumption(tokens as f64 / self.size as f64);
             }
+            error!("Failed consumption: not enough tokens.");
             // If not enough tokens consume() fails, return false.
             return BucketReduction::Failure;
         }
 
         self.budget -= tokens;
+        error!(
+            "Success: consumed {} tokens, {} remaining",
+            tokens, self.budget
+        );
         BucketReduction::Success
     }
 
@@ -394,6 +399,10 @@ impl RateLimiter {
                     // order to enforce the bandwidth limit we need to prevent
                     // further calls to the rate limiter for
                     // `ratio * refill_time` milliseconds.
+                    error!(
+                        "Arming overconsumption timer for {:?} ms",
+                        (ratio * refill_time as f64) as u64
+                    );
                     self.activate_timer(TimerState::Oneshot(Duration::from_millis(
                         (ratio * refill_time as f64) as u64,
                     )));
@@ -444,6 +453,7 @@ impl RateLimiter {
                 "Rate limiter event handler called without a present timer",
             )),
             _ => {
+                error!("Rate limiter timer ticked!");
                 self.timer_active = false;
                 Ok(())
             }

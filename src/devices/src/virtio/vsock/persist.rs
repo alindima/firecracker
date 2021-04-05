@@ -7,6 +7,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use super::*;
+use rate_limiter::{persist::RateLimiterState, RateLimiter};
 use snapshot::Persist;
 use versionize::{VersionMap, Versionize, VersionizeError, VersionizeResult};
 use versionize_derive::Versionize;
@@ -28,6 +29,7 @@ pub struct VsockState {
 pub struct VsockFrontendState {
     pub cid: u64,
     virtio_state: VirtioDeviceState,
+    tx_rate_limiter_state: RateLimiterState,
 }
 
 /// An enum for the serializable backend state types.
@@ -91,6 +93,7 @@ where
 
     fn save(&self) -> Self::State {
         VsockFrontendState {
+            tx_rate_limiter_state: self.tx_rate_limiter.save(),
             cid: self.cid(),
             virtio_state: VirtioDeviceState::from_device(self),
         }
@@ -100,6 +103,7 @@ where
         constructor_args: Self::ConstructorArgs,
         state: &Self::State,
     ) -> std::result::Result<Self, Self::Error> {
+        let tx_rate_limiter = RateLimiter::restore((), &state.tx_rate_limiter_state).unwrap();
         // Restore queues.
         let queues = state
             .virtio_state
@@ -110,7 +114,8 @@ where
                 defs::QUEUE_SIZE,
             )
             .map_err(VsockError::VirtioState)?;
-        let mut vsock = Self::with_queues(state.cid, constructor_args.backend, queues)?;
+        let mut vsock =
+            Self::with_queues(state.cid, constructor_args.backend, tx_rate_limiter, queues)?;
 
         vsock.acked_features = state.virtio_state.acked_features;
         vsock.avail_features = state.virtio_state.avail_features;

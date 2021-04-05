@@ -1,12 +1,14 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::RateLimiterConfig;
+use std::convert::TryInto;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use devices::virtio::{Vsock, VsockError, VsockUnixBackend, VsockUnixBackendError};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 type MutexVsockUnix = Arc<Mutex<Vsock<VsockUnixBackend>>>;
 
@@ -17,6 +19,8 @@ pub enum VsockConfigError {
     CreateVsockBackend(VsockUnixBackendError),
     /// Failed to create the vsock device.
     CreateVsockDevice(VsockError),
+    /// Failed to create RateLimiter.
+    CreateRateLimiter(std::io::Error),
 }
 
 impl fmt::Display for VsockConfigError {
@@ -27,6 +31,7 @@ impl fmt::Display for VsockConfigError {
                 write!(f, "Cannot create backend for vsock device: {:?}", e)
             }
             CreateVsockDevice(ref e) => write!(f, "Cannot create vsock device: {:?}", e),
+            CreateRateLimiter(ref e) => write!(f, "Cannot create Rate Limiter: {:?}", e),
         }
     }
 }
@@ -35,7 +40,7 @@ type Result<T> = std::result::Result<T, VsockConfigError>;
 
 /// This struct represents the strongly typed equivalent of the json body
 /// from vsock related requests.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct VsockDeviceConfig {
     /// ID of the vsock device.
@@ -44,6 +49,8 @@ pub struct VsockDeviceConfig {
     pub guest_cid: u32,
     /// Path to local unix socket.
     pub uds_path: String,
+    /// Rate Limiter for transmitted packages.
+    pub tx_rate_limiter: Option<RateLimiterConfig>,
 }
 
 struct VsockAndUnixPath {
@@ -88,9 +95,18 @@ impl VsockBuilder {
     pub fn create_unixsock_vsock(cfg: VsockDeviceConfig) -> Result<Vsock<VsockUnixBackend>> {
         let backend = VsockUnixBackend::new(u64::from(cfg.guest_cid), cfg.uds_path)
             .map_err(VsockConfigError::CreateVsockBackend)?;
+        let tx_rate_limiter = cfg
+            .tx_rate_limiter
+            .map(super::RateLimiterConfig::try_into)
+            .transpose()
+            .map_err(VsockConfigError::CreateRateLimiter)?;
 
-        Ok(Vsock::new(u64::from(cfg.guest_cid), backend)
-            .map_err(VsockConfigError::CreateVsockDevice)?)
+        Ok(Vsock::new(
+            u64::from(cfg.guest_cid),
+            backend,
+            tx_rate_limiter.unwrap_or_default(),
+        )
+        .map_err(VsockConfigError::CreateVsockDevice)?)
     }
 }
 

@@ -407,7 +407,7 @@ class Microvm:
             return True
         return False
 
-    def spawn(self, create_logger=True, log_file='log_fifo', log_level='Info'):
+    def spawn(self, create_logger=True, log_file='log_fifo', log_level='Debug'):
         """Start a microVM as a daemon or in a screen session."""
         # pylint: disable=subprocess-run-check
         self._jailer.setup()
@@ -766,6 +766,7 @@ class Microvm:
                     data = fd.readline()
                     if data:
                         microvm.append_to_log_data(data)
+                        print(data)
             except IOError as error:
                 LOG.error("[%s] IOError while monitoring fd:"
                           " %s", microvm.id, error)

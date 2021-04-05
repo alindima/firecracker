@@ -1089,3 +1089,5 @@ definitions:
         description: Path to UNIX domain socket, used to proxy vsock connections.
       vsock_id:
         type: string
+      tx_rate_limiter:
+        $ref: "#/definitions/RateLimiter"

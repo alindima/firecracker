@@ -43,7 +43,12 @@ def test_vsock(
     vm.vsock.put(
         vsock_id="vsock0",
         guest_cid=3,
-        uds_path="/{}".format(VSOCK_UDS_PATH)
+        uds_path="/{}".format(VSOCK_UDS_PATH),
+        tx_rate_limiter={'bandwidth': {
+            'size': 200000,
+            'refill_time': 100
+        }
+        }
     )
 
     vm.start()
@@ -74,6 +79,7 @@ def test_vsock(
     )
     check_guest_connections(vm, path, vm_blob_path, blob_hash)
 
+    print("starting take 2")
     # Test host-initiated connections.
     path = os.path.join(vm.jailer.chroot_path(), VSOCK_UDS_PATH)
     check_host_connections(vm, path, blob_path, blob_hash)

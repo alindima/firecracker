@@ -702,12 +702,16 @@ class Vsock():
     def create_json(
             vsock_id,
             guest_cid,
-            uds_path):
+            uds_path,
+            tx_rate_limiter=None):
         """Create the json for the vsock specific API request."""
         datax = {
             'vsock_id': vsock_id,
             'guest_cid': guest_cid,
-            'uds_path': uds_path
+            'uds_path': uds_path,
         }
+
+        if tx_rate_limiter is not None:
+            datax['tx_rate_limiter'] = tx_rate_limiter
 
         return datax

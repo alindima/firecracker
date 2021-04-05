@@ -72,8 +72,12 @@ where
             error!("Failed to get vsock tx queue event: {:?}", e);
             METRICS.vsock.tx_queue_event_fails.inc();
         } else {
-            raise_irq |= self.process_tx();
-            METRICS.vsock.tx_queue_event_count.inc();
+            if !self.tx_rate_limiter.is_blocked() {
+                raise_irq |= self.process_tx();
+                METRICS.vsock.tx_queue_event_count.inc();
+            } else {
+                // METRICS.vsock.tx_rate_limiter_throttled.inc();
+            }
             // The backend may have queued up responses to the packets we sent during
             // TX queue processing. If that happened, we need to fetch those responses
             // and place them into RX buffers.
@@ -158,6 +162,7 @@ where
         let rxq = self.queue_events[RXQ_INDEX].as_raw_fd();
         let txq = self.queue_events[TXQ_INDEX].as_raw_fd();
         let evq = self.queue_events[EVQ_INDEX].as_raw_fd();
+        let tx_rate_limiter_fd = self.tx_rate_limiter.as_raw_fd();
         let backend = self.backend.as_raw_fd();
         let activate_evt = self.activate_evt.as_raw_fd();
 
@@ -167,6 +172,9 @@ where
                 _ if source == rxq => raise_irq = self.handle_rxq_event(event),
                 _ if source == txq => raise_irq = self.handle_txq_event(event),
                 _ if source == evq => raise_irq = self.handle_evq_event(event),
+                _ if source == tx_rate_limiter_fd => {
+                    raise_irq = self.process_tx_rate_limiter_event()
+                }
                 _ if source == backend => {
                     raise_irq = self.notify_backend(event);
                 }
@@ -209,6 +217,7 @@ where
                     self.backend.get_polled_evset(),
                     self.backend.as_raw_fd() as u64,
                 ),
+                EpollEvent::new(EventSet::IN, self.tx_rate_limiter.as_raw_fd() as u64),
             ]
         } else {
             vec![EpollEvent::new(

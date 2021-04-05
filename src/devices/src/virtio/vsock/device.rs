@@ -24,6 +24,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use logger::{debug, error, warn, IncMetric, METRICS};
+use rate_limiter::{RateLimiter, TokenType};
 use utils::byte_order;
 use utils::eventfd::EventFd;
 use vm_memory::GuestMemoryMmap;
@@ -64,6 +65,7 @@ pub struct Vsock<B> {
     // continuous triggers from happening before the device gets activated.
     pub(crate) activate_evt: EventFd,
     pub(crate) device_state: DeviceState,
+    pub(crate) tx_rate_limiter: RateLimiter,
 }
 
 // TODO: Detect / handle queue deadlock:
@@ -75,7 +77,12 @@ impl<B> Vsock<B>
 where
     B: VsockBackend,
 {
-    pub fn with_queues(cid: u64, backend: B, queues: Vec<VirtQueue>) -> super::Result<Vsock<B>> {
+    pub fn with_queues(
+        cid: u64,
+        backend: B,
+        tx_rate_limiter: RateLimiter,
+        queues: Vec<VirtQueue>,
+    ) -> super::Result<Vsock<B>> {
         let mut queue_events = Vec::new();
         for _ in 0..queues.len() {
             queue_events.push(EventFd::new(libc::EFD_NONBLOCK).map_err(VsockError::EventFd)?);
@@ -92,16 +99,17 @@ where
             interrupt_evt: EventFd::new(libc::EFD_NONBLOCK).map_err(VsockError::EventFd)?,
             activate_evt: EventFd::new(libc::EFD_NONBLOCK).map_err(VsockError::EventFd)?,
             device_state: DeviceState::Inactive,
+            tx_rate_limiter,
         })
     }
 
     /// Create a new virtio-vsock device with the given VM CID and vsock backend.
-    pub fn new(cid: u64, backend: B) -> super::Result<Vsock<B>> {
+    pub fn new(cid: u64, backend: B, tx_rate_limiter: RateLimiter) -> super::Result<Vsock<B>> {
         let queues: Vec<VirtQueue> = defs::QUEUE_SIZES
             .iter()
             .map(|&max_size| VirtQueue::new(max_size))
             .collect();
-        Self::with_queues(cid, backend, queues)
+        Self::with_queues(cid, backend, tx_rate_limiter, queues)
     }
 
     pub fn id(&self) -> &str {
@@ -184,6 +192,16 @@ where
         let mut have_used = false;
 
         while let Some(head) = self.queues[TXQ_INDEX].pop(mem) {
+            // If limiter.consume() fails it means there is no more TokenType::Ops
+            // budget and rate limiting is in effect.
+            if !self.tx_rate_limiter.consume(1, TokenType::Ops) {
+                // Stop processing the queue and return this descriptor chain to the
+                // avail ring, for later processing.
+                self.queues[TXQ_INDEX].undo_pop();
+                // METRICS.vsock.tx_rate_limiter_throttled.inc();
+                break;
+            }
+
             let pkt = match VsockPacket::from_tx_virtq_head(&head) {
                 Ok(pkt) => pkt,
                 Err(e) => {
@@ -197,6 +215,18 @@ where
                     continue;
                 }
             };
+
+            let count = pkt.len();
+
+            if !self.tx_rate_limiter.consume(count as u64, TokenType::Bytes) {
+                // revert the OPS consume()
+                self.tx_rate_limiter.manual_replenish(1, TokenType::Ops);
+                // Stop processing the queue and return this descriptor chain to the
+                // avail ring, for later processing.
+                self.queues[TXQ_INDEX].undo_pop();
+                // METRICS.vsock.tx_rate_limiter_throttled.inc();
+                break;
+            }
 
             if self.backend.send_pkt(&pkt).is_err() {
                 self.queues[TXQ_INDEX].undo_pop();
@@ -212,6 +242,26 @@ where
         }
 
         have_used
+    }
+
+    pub fn process_tx_rate_limiter_event(&mut self) -> bool {
+        let mut raise_irq = false;
+
+        METRICS.net.tx_rate_limiter_event_count.inc();
+        // Upon rate limiter event, call the rate limiter handler
+        // and restart processing the queue.
+        match self.tx_rate_limiter.event_handler() {
+            Ok(_) => {
+                // There might be enough budget now to send the frame.
+                raise_irq |= self.process_tx();
+            }
+            Err(e) => {
+                error!("Failed to get tx rate-limiter event: {:?}", e);
+                METRICS.net.event_fails.inc();
+            }
+        }
+
+        raise_irq
     }
 }
 

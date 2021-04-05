@@ -436,6 +436,11 @@ where
 
     /// Notify the connection about an event (or set of events) that it was interested in.
     fn notify(&mut self, evset: EventSet) {
+        error!("hangup: {:?}", evset);
+        if evset.contains(EventSet::HANG_UP) {
+            error!("Received hang up");
+            panic!("Here man, hang up");
+        }
         if evset.contains(EventSet::IN) {
             // Data can be read from the host stream. Setting a Rw pending indication, so that
             // the muxer will know to call `recv_pkt()` later.

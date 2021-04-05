@@ -10,6 +10,7 @@ use crate::virtio::{
     VirtioDevice, Vsock, VsockBackend, VsockChannel, VsockEpollListener, VsockError,
     VIRTQ_DESC_F_NEXT, VIRTQ_DESC_F_WRITE,
 };
+use rate_limiter::RateLimiter;
 use utils::epoll::{EpollEvent, EventSet};
 use utils::eventfd::EventFd;
 use vm_memory::{GuestAddress, GuestMemoryMmap};
@@ -120,7 +121,7 @@ impl TestContext {
             cid: CID,
             mem,
             mem_size: MEM_SIZE,
-            device: Vsock::new(CID, TestBackend::new()).unwrap(),
+            device: Vsock::new(CID, TestBackend::new(), RateLimiter::default()).unwrap(),
         }
     }
 
@@ -157,7 +158,13 @@ impl TestContext {
             guest_rxvq,
             guest_txvq,
             guest_evvq,
-            device: Vsock::with_queues(self.cid, TestBackend::new(), queues).unwrap(),
+            device: Vsock::with_queues(
+                self.cid,
+                TestBackend::new(),
+                RateLimiter::default(),
+                queues,
+            )
+            .unwrap(),
         }
     }
 }
