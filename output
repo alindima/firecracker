@@ -1,0 +1,229 @@
+[Firecracker devtool] 2021-06-17 07:39:31 UTC
+[Firecracker devtool] Starting test run ...
+
+[ performance | 12 tests | 1 worker(s) ]
+============================= test session starts ==============================
+platform linux -- Python 3.6.9, pytest-6.2.2, py-1.10.0, pluggy-0.13.1
+cachedir: ../build/pytest_cache
+rootdir: /firecracker/tests, configfile: pytest.ini
+plugins: timeout-1.4.2
+timeout: 300.0s
+timeout method: signal
+timeout func_only: False
+collected 163 items
+  PASSED    integration_tests/performance/test_boottime.py::test_no_boottime[ubuntu]
+  PASSED    integration_tests/performance/test_boottime.py::test_boottime_no_network[minimal]
+  PASSED    integration_tests/performance/test_boottime.py::test_boottime_with_network[minimal]
+  PASSED    integration_tests/performance/test_boottime.py::test_initrd_boottime[minimal_with_initrd]
+  PASSED    integration_tests/performance/test_process_startup_time.py::test_startup_time_new_pid_ns[ubuntu]
+  PASSED    integration_tests/performance/test_process_startup_time.py::test_startup_time_daemonize[ubuntu]
+  PASSED    integration_tests/performance/test_process_startup_time.py::test_startup_time_custom_seccomp[ubuntu]
+  PASSED    integration_tests/performance/test_snapshot_perf.py::test_snapshot_create_full_latency
+  PASSED    integration_tests/performance/test_snapshot_perf.py::test_snapshot_create_diff_latency
+  PASSED    integration_tests/performance/test_snapshot_perf.py::test_snapshot_resume_latency
+  FAILED    integration_tests/performance/test_snapshot_perf.py::test_older_snapshot_resume_latency
+  FAILED    integration_tests/performance/test_versioned_serialization_benchmark.py::test_serialization_benchmark
+
+[ unsafe | 16 tests | 1 worker(s) ]
+  FAILED    integration_tests/build/test_coverage.py::test_coverage
+  PASSED    integration_tests/functional/test_initrd.py::test_microvm_initrd_with_serial[minimal_with_initrd]
+  PASSED    integration_tests/functional/test_max_vcpus.py::test_max_vcpus[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_rate_limiter.py::test_tx_rate_limiting[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_rate_limiter.py::test_rx_rate_limiting[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_rate_limiter.py::test_rx_rate_limiting_cpu_load[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGBUS]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGSEGV]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGXFSZ]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGXCPU]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGPIPE]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGHUP]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGILL]
+  PASSED    integration_tests/functional/test_signals.py::test_generic_signal_handler[ubuntu-Signals.SIGSYS]
+  PASSED    integration_tests/functional/test_signals.py::test_sigxfsz_handler[ubuntu]
+  PASSED    integration_tests/functional/test_signals.py::test_handled_signals[ubuntu_with_ssh]
+
+[ safe | 131 tests | 1 worker(s) ]
+  PASSED    integration_tests/build/test_binary_size.py::test_firecracker_binary_size
+  PASSED    integration_tests/build/test_binary_size.py::test_jailer_binary_size
+  PASSED    integration_tests/build/test_clippy.py::test_rust_clippy[x86_64-unknown-linux-gnu]
+  PASSED    integration_tests/build/test_clippy.py::test_rust_clippy[x86_64-unknown-linux-musl]
+  PASSED    integration_tests/build/test_unittests.py::test_unittests[x86_64-unknown-linux-gnu]
+  SKIPPED   integration_tests/build/test_unittests.py::test_unittests[x86_64-unknown-linux-musl]
+  PASSED    integration_tests/functional/test_api.py::test_api_happy_start[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_put_update_pre_boot[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_net_api_put_update_pre_boot[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_put_machine_config[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_put_update_post_boot[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_rate_limiters_api_config[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_patch_pre_boot[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_patch_post_boot[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_drive_patch[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_send_ctrl_alt_del[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_vsock[ubuntu]
+  PASSED    integration_tests/functional/test_api.py::test_api_balloon[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_api.py::test_negative_api_lifecycle
+  PASSED    integration_tests/functional/test_balloon.py::test_rss_memory_lower[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_inflate_reduces_free[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_deflate_on_oom_true[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_deflate_on_oom_false[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_reinflate_balloon[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_size_reduction[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_stats[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_stats_update[debian_with_ssh_and_balloon]
+  PASSED    integration_tests/functional/test_balloon.py::test_balloon_snapshot
+  PASSED    integration_tests/functional/test_balloon.py::test_snapshot_compatibility
+  PASSED    integration_tests/functional/test_balloon.py::test_memory_scrub
+  PASSED    integration_tests/functional/test_cmd_line_parameters.py::test_describe_snapshot_all_versions
+  PASSED    integration_tests/functional/test_cmd_line_start.py::test_config_start_with_api[ubuntu_with_ssh-framework/vm_config.json]
+  PASSED    integration_tests/functional/test_cmd_line_start.py::test_config_start_no_api[ubuntu_with_ssh-framework/vm_config.json]
+  PASSED    integration_tests/functional/test_concurrency.py::test_run_concurrency[ubuntu_with_ssh, 20 instance(s)]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-True-1]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-True-2]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-True-16]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-False-1]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-False-2]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpuid[ubuntu_with_ssh-False-16]
+  SKIPPED   integration_tests/functional/test_cpu_features.py::test_cpu_features[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_brand_string[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpu_template[ubuntu_with_ssh-T2]
+  PASSED    integration_tests/functional/test_cpu_features.py::test_cpu_template[ubuntu_with_ssh-C3]
+  PASSED    integration_tests/functional/test_drives.py::test_rescan_file[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_device_ordering[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_rescan_dev[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_non_partuuid_boot[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_partuuid_boot[ubuntu_with_partuuid]
+  PASSED    integration_tests/functional/test_drives.py::test_partuuid_update[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_patch_drive[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_no_flush[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_flush[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_block_default_cache_old_version[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_drives.py::test_patch_drive_limiter[ubuntu_with_ssh]
+  SKIPPED   integration_tests/functional/test_error_code.py::test_enosys_error_code[minimal_with_initrd]
+  PASSED    integration_tests/functional/test_logging.py::test_no_origin_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_no_level_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_no_nada_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_info_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_warn_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_error_logs[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_logging.py::test_log_config_failure[ubuntu]
+  PASSED    integration_tests/functional/test_logging.py::test_api_requests_logs[ubuntu]
+  PASSED    integration_tests/functional/test_max_devices.py::test_attach_maximum_devices[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_max_devices.py::test_attach_too_many_devices[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_metrics.py::test_flush_metrics[ubuntu]
+  PASSED    integration_tests/functional/test_mmds.py::test_custom_ipv4[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_mmds.py::test_json_response[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_mmds.py::test_imds_response[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_mmds.py::test_larger_than_mss_payloads[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_mmds.py::test_mmds_dummy[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_mmds.py::test_guest_mmds_hang[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_net.py::test_high_ingress_traffic[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_net_config_space.py::test_net_change_mac_address[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_pause_resume.py::test_pause_resume
+  PASSED    integration_tests/functional/test_pause_resume.py::test_describe_instance
+  SKIPPED   integration_tests/functional/test_rtc.py::test_rtc[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_serial_io.py::test_serial_console_login[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_serial_io.py::test_serial_dos[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_serial_io.py::test_serial_block[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_shut_down.py::test_reboot[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_snapshot_advanced.py::test_restore_old_snapshot_all_devices
+  PASSED    integration_tests/functional/test_snapshot_advanced.py::test_restore_old_version_all_devices
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_patch_drive_snapshot
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_5_full_snapshots
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_5_inc_snapshots
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_load_snapshot_failure_handling[ubuntu]
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_cmp_full_and_first_diff_mem
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_negative_postload_api
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_negative_snapshot_permissions
+  PASSED    integration_tests/functional/test_snapshot_basic.py::test_negative_snapshot_create
+  PASSED    integration_tests/functional/test_snapshot_version.py::test_create_v0_23_snapshot[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_snapshot_version.py::test_create_with_prev_device_count[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_snapshot_version.py::test_create_with_too_many_devices[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_snapshot_version.py::test_create_invalid_version
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-True-1]
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-True-2]
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-True-16]
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-False-1]
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-False-2]
+  PASSED    integration_tests/functional/test_topology.py::test_cpu_topology[ubuntu_with_ssh-False-16]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-True-1]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-True-2]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-True-16]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-False-1]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-False-2]
+  PASSED    integration_tests/functional/test_topology.py::test_cache_topology[ubuntu_with_ssh-False-16]
+  PASSED    integration_tests/functional/test_vsock.py::test_vsock[ubuntu_with_ssh]
+  PASSED    integration_tests/functional/test_vsock.py::test_vsock_epipe[ubuntu_with_ssh]
+  PASSED    integration_tests/security/test_custom_seccomp.py::test_allow_all[ubuntu]
+  PASSED    integration_tests/security/test_custom_seccomp.py::test_working_filter[ubuntu]
+  PASSED    integration_tests/security/test_custom_seccomp.py::test_failing_filter[ubuntu]
+  PASSED    integration_tests/security/test_custom_seccomp.py::test_invalid_bpf[ubuntu_with_ssh-framework/vm_config.json]
+  PASSED    integration_tests/security/test_jail.py::test_default_chroot[ubuntu_with_ssh]
+  PASSED    integration_tests/security/test_jail.py::test_empty_jailer_id[ubuntu_with_ssh]
+  PASSED    integration_tests/security/test_jail.py::test_default_chroot_hierarchy[minimal_with_initrd]
+  PASSED    integration_tests/security/test_jail.py::test_arbitrary_usocket_location[minimal_with_initrd]
+  PASSED    integration_tests/security/test_jail.py::test_cgroups[minimal_with_initrd]
+  PASSED    integration_tests/security/test_jail.py::test_node_cgroups[minimal_with_initrd]
+  PASSED    integration_tests/security/test_jail.py::test_args_cgroups[minimal_with_initrd]
+  PASSED    integration_tests/security/test_jail.py::test_new_pid_namespace[ubuntu_with_ssh]
+  PASSED    integration_tests/security/test_sec_audit.py::test_cargo_audit
+  PASSED    integration_tests/security/test_seccomp.py::test_seccomp_ls
+  PASSED    integration_tests/security/test_seccomp.py::test_advanced_seccomp
+  PASSED    integration_tests/security/test_seccomp.py::test_no_seccomp[ubuntu]
+  PASSED    integration_tests/security/test_seccomp.py::test_seccomp_level[ubuntu-default]
+  PASSED    integration_tests/security/test_seccomp.py::test_seccomp_level[ubuntu-0]
+  PASSED    integration_tests/security/test_seccomp.py::test_seccomp_level[ubuntu-1]
+  PASSED    integration_tests/security/test_seccomp.py::test_seccomp_level[ubuntu-2]
+  PASSED    integration_tests/security/test_ssbd_mitigation.py::test_ssbd_mitigation[minimal_with_initrd]
+
+=================================== FAILURES ===================================
+______________________ test_older_snapshot_resume_latency ______________________
+framework/report.py:244: in func_wrapper
+    original_function(*args, **kwargs))
+integration_tests/performance/test_snapshot_perf.py:405: in test_older_snapshot_resume_latency
+    assert baseline > value, "LoadSnapshot latency degraded."
+E   AssertionError: LoadSnapshot latency degraded.
+E   assert 9 > 11.041
+------------------------------ Captured log call -------------------------------
+07:42:44 old_snapshot_load: INFO Firecracker version: 0.23.0
+07:42:44 old_snapshot_load: INFO Source Firecracker: /srv/ci-artifacts/firecracker/x86_64/v0.23.0.firecracker
+07:42:44 old_snapshot_load: INFO Source Jailer: /srv/ci-artifacts/jailer/x86_64/v0.23.0.jailer
+07:42:45 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:47 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:48 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:49 old_snapshot_load: INFO Latency 1/3: 2.766 ms
+07:42:50 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:51 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:52 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:53 old_snapshot_load: INFO Latency 2/3: 2.984 ms
+07:42:54 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:56 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:57 retry.api: WARNING , retrying in 0.1 seconds...
+07:42:57 old_snapshot_load: INFO Latency 3/3: 11.041 ms
+_________________________ test_serialization_benchmark _________________________
+/firecracker/tests/framework/report.py:244: in func_wrapper
+    original_function(*args, **kwargs))
+/firecracker/tests/integration_tests/performance/test_versioned_serialization_benchmark.py:150: in test_serialization_benchmark
+    _check_statistics(directory, mean)
+/firecracker/tests/integration_tests/performance/test_versioned_serialization_benchmark.py:109: in _check_statistics
+    assert low <= mean <= high, "Benchmark result {} has changed!" \
+E   AssertionError: Benchmark result Serialize MicrovmState has changed!
+E   assert 0.121 <= 0.10941128852806287
+------------------------------ Captured log call -------------------------------
+07:43:56 serialization_benchmark: INFO Benchmark: Serialize MicrovmState
+07:43:56 serialization_benchmark: INFO Mean: 0.109411
+________________________________ test_coverage _________________________________
+framework/report.py:244: in func_wrapper
+    original_function(*args, **kwargs))
+integration_tests/build/test_coverage.py:114: in test_coverage
+    assert coverage >= min_coverage, coverage_low_msg
+E   AssertionError: Current code coverage (84.98%) is below the target (85.1%).
+E   assert 84.97731990466671 >= 85.05
+----------------------------- Captured stdout call -----------------------------
+Number of executable lines: 13007
+Number of covered lines: 11053
+Thus, coverage is: 84.98%
+=========================== short test summary info ============================
+FAILED integration_tests/performance/test_snapshot_perf.py::test_older_snapshot_resume_latency
+FAILED integration_tests/performance/test_versioned_serialization_benchmark.py::test_serialization_benchmark
+FAILED integration_tests/build/test_coverage.py::test_coverage - AssertionErr...
+===== 3 failed, 152 passed, 4 skipped, 4 deselected in 1159.27s (0:19:19) ======

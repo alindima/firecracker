@@ -11,7 +11,7 @@ use versionize::{VersionMap, Versionize, VersionizeResult};
 use versionize_derive::Versionize;
 use vm_memory::{
     Bitmap, Bytes, FileOffset, GuestAddress, GuestMemory, GuestMemoryError, GuestMemoryMmap,
-    GuestMemoryRegion, GuestRegionMmap, MemoryRegionAddress, MmapRegion,
+    GuestMemoryRegion, MemoryRegionAddress,
 };
 
 use crate::DirtyBitmap;
@@ -109,8 +109,7 @@ impl SnapshotMemory for GuestMemoryMmap {
     /// Dumps all contents of GuestMemoryMmap to a writer.
     fn dump<T: std::io::Write>(&self, writer: &mut T) -> std::result::Result<(), Error> {
         self.iter()
-            .enumerate()
-            .try_for_each(|(_, region)| {
+            .try_for_each(|region| {
                 region.write_all_to(MemoryRegionAddress(0), writer, region.len() as usize)
             })
             .map_err(Error::WriteMemory)
@@ -183,28 +182,21 @@ impl SnapshotMemory for GuestMemoryMmap {
         state: &GuestMemoryState,
         track_dirty_pages: bool,
     ) -> std::result::Result<Self, Error> {
-        let mut mmap_regions = Vec::new();
-        for region in state.regions.iter() {
-            let mmap_region = GuestRegionMmap::new(
-                MmapRegion::build(
-                    Some(FileOffset::new(
-                        file.try_clone().map_err(Error::FileHandle)?,
-                        region.offset,
-                    )),
-                    region.size,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                    libc::MAP_NORESERVE | libc::MAP_PRIVATE,
-                )
-                .map_err(Error::CreateRegion)?,
-                GuestAddress(region.base_address),
-            )
-            .map_err(Error::CreateMemory)?;
-
-            mmap_regions.push(mmap_region);
-        }
-
-        vm_memory::create_guest_memory_with_regions(mmap_regions, track_dirty_pages)
-            .map_err(Error::CreateMemory)
+        vm_memory::create_guest_memory(
+            &state
+                .regions
+                .iter()
+                .map(|r| {
+                    (
+                        Some(FileOffset::new(file.try_clone().unwrap(), r.offset)),
+                        GuestAddress(r.base_address),
+                        r.size,
+                    )
+                })
+                .collect::<Vec<_>>(),
+            track_dirty_pages,
+        )
+        .map_err(Error::CreateMemory)
     }
 }
 
@@ -285,11 +277,10 @@ mod tests {
 
         // Two regions of two pages each, with a one page gap between them.
         let mem_regions = [
-            (GuestAddress(0), page_size * 2),
-            (GuestAddress(page_size as u64 * 3), page_size * 2),
+            (None, GuestAddress(0), page_size * 2),
+            (None, GuestAddress(page_size as u64 * 3), page_size * 2),
         ];
-        let guest_memory =
-            vm_memory::create_guest_memory_with_ranges(&mem_regions[..], true).unwrap();
+        let guest_memory = vm_memory::create_guest_memory(&mem_regions[..], true).unwrap();
         // Check that Firecracker bitmap is clean.
         let _res: std::result::Result<(), Error> = guest_memory.iter().try_for_each(|r| {
             assert!(!r.bitmap().dirty_at(0));

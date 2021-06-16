@@ -5,10 +5,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the THIRD-PARTY file.
 
-//! This is a "proxy" crate for Firecracker. It links to upstream vm-memory implementation
-//! and re-exports symbols for consumption.
-//! This crate implements a custom vm-memory backend implementation that overrides the
-//! upstream implementation and adds dirty page tracking functionality.
+//! // TODO: fix all the unwraps in create_guest_memory
+//! // TODO: add unit tests for this code
+//! // TODO: Replace the MyBitmap type with an Option<AtomicBitmap>, once the builder pattern
+//!    for the mmapregion becomes available.
 
 // Export local backend implementation.
 
@@ -16,20 +16,26 @@
 pub use vm_memory_upstream::{
     address, bitmap::Bitmap, mmap::MmapRegionError, Address, ByteValued, Bytes, Error, FileOffset,
     GuestAddress, GuestMemory, GuestMemoryError, GuestMemoryRegion, GuestUsize,
-    MemoryRegionAddress, MmapRegion,
+    MemoryRegionAddress,
 };
 
 use std::default::Default;
+use std::io::Error as IoError;
+use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use vm_memory_upstream::bitmap::{AtomicBitmap, RefSlice, WithBitmapSlice};
-use vm_memory_upstream::mmap::NewBitmap;
+use vm_memory_upstream::mmap::{check_file_offset, NewBitmap};
 use vm_memory_upstream::{
     GuestMemoryMmap as UpstreamGuestMemoryMmap, GuestRegionMmap as UpstreamGuestRegionMmap,
+    MmapRegion as UpstreamMmapRegion,
 };
 
 pub type GuestMemoryMmap = UpstreamGuestMemoryMmap<MyBitmap>;
 pub type GuestRegionMmap = UpstreamGuestRegionMmap<MyBitmap>;
+pub type MmapRegion = UpstreamMmapRegion<MyBitmap>;
+
+const GUARD_NUMBER: usize = 2;
 
 #[derive(Debug)]
 pub struct MyBitmap {
@@ -106,33 +112,100 @@ impl Bitmap for MyBitmap {
     }
 }
 
-fn enable_dirty_bitmap_tracking(mem: &GuestMemoryMmap) {
+fn enable_dirty_page_tracking(mem: &GuestMemoryMmap) {
     for region in mem.iter() {
         region.bitmap().enable();
     }
 }
 
-// todo setup guard pages!
+fn build_guarded_region(
+    file_offset: Option<FileOffset>,
+    size: usize,
+    prot: i32,
+    flags: i32,
+) -> Result<MmapRegion, MmapRegionError> {
+    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
+    // Create the guarded range size (received size + X pages),
+    // where X is defined as a constant GUARD_NUMBER.
+    let guarded_size = size + GUARD_NUMBER * page_size;
 
-/// Creates GuestMemory of `mem_size_mib` MiB in size.
-pub fn create_guest_memory_with_ranges(
-    ranges: &[(GuestAddress, usize)],
-    track_dirty_pages: bool,
-) -> std::result::Result<GuestMemoryMmap, Error> {
-    let guest_mem = GuestMemoryMmap::from_ranges(ranges)?;
-    if track_dirty_pages {
-        enable_dirty_bitmap_tracking(&guest_mem);
+    // Map the guarded range to PROT_NONE
+    let guard_addr = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            guarded_size,
+            libc::PROT_NONE,
+            libc::MAP_ANONYMOUS | libc::MAP_PRIVATE | libc::MAP_NORESERVE,
+            -1,
+            0,
+        )
+    };
+
+    if guard_addr == libc::MAP_FAILED {
+        return Err(MmapRegionError::Mmap(IoError::last_os_error()));
     }
-    Ok(guest_mem)
+
+    let (fd, offset) = if let Some(ref f_off) = file_offset {
+        check_file_offset(f_off, size)?;
+        (f_off.file().as_raw_fd(), f_off.start())
+    } else {
+        (-1, 0)
+    };
+
+    let map_addr = guard_addr as usize + page_size * (GUARD_NUMBER / 2);
+
+    // Inside the protected range, starting with guard_addr + PAGE_SIZE,
+    // map the requested range with received protection and flags
+    let addr = unsafe {
+        libc::mmap(
+            map_addr as *mut libc::c_void,
+            size,
+            prot,
+            flags | libc::MAP_FIXED,
+            fd,
+            offset as libc::off_t,
+        )
+    };
+
+    if addr == libc::MAP_FAILED {
+        return Err(MmapRegionError::Mmap(IoError::last_os_error()));
+    }
+
+    Ok(unsafe { MmapRegion::build_raw(addr as *mut u8, size, prot, flags)? })
 }
 
-pub fn create_guest_memory_with_regions(
-    regions: Vec<GuestRegionMmap>,
+pub fn create_guest_memory(
+    regions: &[(Option<FileOffset>, GuestAddress, usize)],
     track_dirty_pages: bool,
 ) -> std::result::Result<GuestMemoryMmap, Error> {
-    let guest_mem = GuestMemoryMmap::from_regions(regions)?;
+    let guest_mem = GuestMemoryMmap::from_regions(
+        regions
+            .iter()
+            .map(|region| {
+                let flags = match region.0 {
+                    None => libc::MAP_NORESERVE | libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+                    Some(_) => libc::MAP_NORESERVE | libc::MAP_PRIVATE,
+                };
+
+                GuestRegionMmap::new(
+                    build_guarded_region(
+                        region.0.clone(),
+                        region.2,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                        flags,
+                    )
+                    .unwrap(),
+                    region.1,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+
     if track_dirty_pages {
-        enable_dirty_bitmap_tracking(&guest_mem);
+        enable_dirty_page_tracking(&guest_mem);
     }
+
     Ok(guest_mem)
 }

@@ -493,8 +493,14 @@ pub fn create_guest_memory(
     let mem_size = mem_size_mib << 20;
     let arch_mem_regions = arch::arch_memory_regions(mem_size);
 
-    vm_memory::create_guest_memory_with_ranges(&arch_mem_regions, track_dirty_pages)
-        .map_err(StartMicrovmError::GuestMemoryMmap)
+    vm_memory::create_guest_memory(
+        &arch_mem_regions
+            .iter()
+            .map(|(addr, size)| (None, *addr, *size))
+            .collect::<Vec<_>>()[..],
+        track_dirty_pages,
+    )
+    .map_err(StartMicrovmError::GuestMemoryMmap)
 }
 
 fn load_kernel(

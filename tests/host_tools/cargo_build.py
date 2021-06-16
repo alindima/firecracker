@@ -95,7 +95,7 @@ def get_firecracker_binaries():
 
 def get_rustflags():
     """Get the relevant rustflags for building/unit testing."""
-    rustflags = ""
+    rustflags = "-D warnings"
     if platform.machine() == "aarch64":
         rustflags += " -C link-arg=-lgcc -C link-arg=-lfdt "
     return rustflags
