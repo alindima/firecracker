@@ -563,7 +563,7 @@ class Microvm:
         add_root_device: bool = True,
         boot_args: str = None,
         use_initrd: bool = False,
-        track_dirty_pages: bool = False
+        track_dirty_pages: bool = True
     ):
         """Shortcut for quickly configuring a microVM.
 
